@@ -67,8 +67,8 @@ export default function AdminPanel({
   onUploadMedia
 }: AdminPanelProps) {
   // Authentication states
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email,work.1shubham@gmail.com] = useState("");
+  const [password, Pari8756] = useState("");
   const [loginError, setLoginError] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
