@@ -1,0 +1,277 @@
+{
+  "prompts": [
+    {
+      "id": "prompt-1",
+      "title": "Principal Systems Design Architect & Tech Lead Prompt",
+      "description": "Transforms any language model into an elite software architect that designs production-grade microservices, clean codebase layouts, and enforces OOP design patterns.",
+      "fullPrompt": "Act as a Principal Systems Architect and Tech Lead with 20+ years of active development experience. Your goal is to guide engineers in designing robust, scalable, and highly performant software systems.\n\nFor any request:\n1. BREAK DOWN architectural constraints (latency, throughput, scalability) first.\n2. STATE clearly which OOP design patterns (e.g., Strategy, Factory, Observer, Mediator) are best suited for the solution and explain WHY.\n3. PROVIDE concrete, clean, production-ready code blocks enforcing strict TypeScript structural typing, SOLID principles, and clean-code spacing.\n4. DEFINE interface separation and mock testing strategies for modules.\n5. OUTLINE potential performance bottlenecks (e.g., N+1 queries, memory limits) and offer proactive mitigation plans.\n\nStructure your responses precisely using Markdown with elegant spacing. Do not write generic explanations; challenge initial assumptions and offer enterprise-grade refactorings.",
+      "category": "Software Engineering",
+      "platform": "ChatGPT",
+      "tags": [
+        "software-engineering",
+        "architecture",
+        "typescript",
+        "clean-code",
+        "expert"
+      ],
+      "coverImage": "https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=1200",
+      "previewImages": [
+        "https://images.unsplash.com/photo-1542831371-29b0f74f9713?q=80&w=1200",
+        "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=1200"
+      ],
+      "animation": "glow-border",
+      "videoDemo": "https://assets.mixkit.co/videos/preview/mixkit-software-developer-working-on-his-computer-34321-large.mp4",
+      "createdAt": "2026-05-15T09:30:22Z",
+      "views": 1843,
+      "likes": 562,
+      "shares": 140,
+      "copyCount": 790,
+      "published": true
+    },
+    {
+      "id": "prompt-2",
+      "title": "Midjourney Cinematic Neo-Cyberpunk V6 Master Portrait",
+      "description": "Generates stunningly beautiful, photorealistic cinematic portraits with meticulous camera specs, dual neon color grading, vaporwave reflections, and deep volumetric dust bokeh.",
+      "fullPrompt": "An evocative, hyper-realistic cinematic portrait of a cybernetic rebel in a rain-slicked Tokyo alley, neo-punk aesthetic, intricate facial features, reflection of glowing holographic Kanji in wet eyes, dramatic volumetric neon lighting from side signs (magenta and ice blue), ambient wet ground reflection, shot on Hasselblad H6D-100c, 85mm lens, f/1.4, shuttle speed 1/250, ISO 100, cinematic atmosphere, subtle mist and floating dust particles in lens flare, Unreal Engine 5 render details, style raw, depth of field, photorealistic texture --v 6.0 --ar 16:9 --style raw --stylize 250",
+      "category": "Image Generation",
+      "platform": "Midjourney",
+      "tags": [
+        "midjourney",
+        "image-generation",
+        "cyberpunk",
+        "photography",
+        "cinematic"
+      ],
+      "coverImage": "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1200",
+      "previewImages": [
+        "https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=1200",
+        "https://images.unsplash.com/photo-1581831490230-4de1b51c4122?q=80&w=1200"
+      ],
+      "animation": "pulse-glow",
+      "videoDemo": "https://assets.mixkit.co/videos/preview/mixkit-spinning-hologram-effect-of-a-planet-41712-large.mp4",
+      "createdAt": "2026-05-20T14:15:00Z",
+      "views": 2515,
+      "likes": 890,
+      "shares": 312,
+      "copyCount": 1110,
+      "published": true
+    },
+    {
+      "id": "prompt-3",
+      "title": "DeepSeek R1 Recursive Reasoning & Algorithm Chain Prompt",
+      "description": "Instructs DeepSeek R1 to invoke maximum reasoning traces, deep-analyze boundary conditions, and detail complex multi-agent synchronization logic.",
+      "fullPrompt": "Act as an Extreme Reasoning Engine optimized for DeepSeek-R1. We are solving a highly complex distributed computing problem involving consensus with custom clock-drift dynamics.\n\nBefore detailing any approach:\n1. GENERATE a comprehensive chain of thought analyzing 4 hidden assumptions that might fail in high-latency edge networks.\n2. CONDUCT a thorough formal analysis of temporal logic and safety invariants.\n3. CONSTRUCT a dry-run state-machine transition table that lists exactly how variables shift step-by-step.\n4. SOLVE the core implementation with rigorous complexity analysis (Time: O(N log K), Space: O(K)), demonstrating highly structured code.\n\nDo not gloss over intermediate math; write the explicit proofs in LaTeX notation where necessary.",
+      "category": "Web Search & Research",
+      "platform": "DeepSeek",
+      "tags": [
+        "deepseek-r1",
+        "reasoning",
+        "algorithms",
+        "distributed-systems",
+        "math"
+      ],
+      "coverImage": "https://images.unsplash.com/photo-1607799279861-4dd421887fb3?q=80&w=1200",
+      "previewImages": [
+        "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?q=80&w=1200"
+      ],
+      "animation": "shimmer",
+      "videoDemo": "",
+      "createdAt": "2026-06-01T10:00:00Z",
+      "views": 1280,
+      "likes": 640,
+      "shares": 95,
+      "copyCount": 512,
+      "published": true
+    },
+    {
+      "id": "prompt-4",
+      "title": "High-Conversion Copywriter Hook & Storytelling Framework",
+      "description": "Converts any cold traffic with structured psychological framing, dynamic pain-point exploration, and premium storytelling hooks for luxury tech brands.",
+      "fullPrompt": "You are an elite, direct-response copywriter trained in the systems of Eugene Schwartz, Gary Halbert, and Joseph Sugarman. Your mission is to write high-converting, deeply persuasive sales copy for a premium hardware tech subscription.\n\nEnforce this structural template:\n- THE HOOK: An contrarian, attention-grabbing truth that disarms reader skepticism.\n- THE AGITATION: Directly expose the daily friction points, making the reader feel identified.\n- THE RESOLUTION: Formulate our product as the ONLY logical gateway to relief, utilizing high-level emotional adjectives.\n- THE TRIALS: Back with 3 empirical scientific analogies.\n- THE URGENCY: Construct an authentic scarcity mechanism based on bandwidth or production slots.\n\nKeep the tone sophisticated, direct, and slightly exclusive. Avoid basic exclamation marks and marketing fluff.",
+      "category": "Marketing & Copywriting",
+      "platform": "Claude",
+      "tags": [
+        "copywriting",
+        "marketing",
+        "claude",
+        "conversion",
+        "sales"
+      ],
+      "coverImage": "https://images.unsplash.com/photo-1455390582262-044cdead277a?q=80&w=1200",
+      "previewImages": [
+        "https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=1200"
+      ],
+      "animation": "",
+      "videoDemo": "",
+      "createdAt": "2026-06-02T16:45:00Z",
+      "views": 941,
+      "likes": 420,
+      "shares": 72,
+      "copyCount": 380,
+      "published": true
+    },
+    {
+      "id": "prompt-5",
+      "title": "Sora Cinematic Noir Wet-Street Film Director Mode",
+      "description": "Creates beautiful, dramatic video prompts for Sora and Runway Gen-3 with specific speed controls, chiaroscuro lighting, and wet asphalt reflections.",
+      "fullPrompt": "A high-fidelity cinematic video prompt for Sora: Static medium close-up shot of an elegant woman walking slowly down a rain-drenched mid-century New York street at midnight. The frame is filled with deep chiaroscuro contrasts; high-contrast streetlights pierce the dense night fog, creating dramatic golden flares on the wet pavements. Puddles reflect towering glowing signs. The camera pans smoothly at a pace of 0.5 meters per second, tracking her soft footsteps. Wet steam rises around her trench coat. Mood is mysterious, classic film noir, 35mm film grain, 4k ultra-high definition resolution, hyper-realistic rendering, highly detailed textures, realistic liquid physics, cinematic tracking motion.",
+      "category": "Video Generation",
+      "platform": "Sora",
+      "tags": [
+        "sora-prompt",
+        "video-generation",
+        "runway",
+        "film-noir",
+        "motion-control"
+      ],
+      "coverImage": "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=1200",
+      "previewImages": [
+        "https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?q=80&w=1200"
+      ],
+      "animation": "glow-border",
+      "videoDemo": "https://assets.mixkit.co/videos/preview/mixkit-city-traffic-at-night-in-creative-colors-41716-large.mp4",
+      "createdAt": "2026-06-03T08:10:00Z",
+      "views": 1560,
+      "likes": 690,
+      "shares": 194,
+      "copyCount": 612,
+      "published": true
+    }
+  ],
+  "guides": [
+    {
+      "id": "guide-1",
+      "title": "The Masterclass: Building Multi-Agent Systems & Advanced Prompt Chains",
+      "description": "Unlock enterprise-grade logic using few-shot instruction designs, strict JSON-schema enforcement wrappers, and resilient self-correction loops.",
+      "content": "### Introduction to Prompt Engineering Mastery\n\nTo build software with large language models, basic prompts like *\"write a python script...\"* are insufficient. Enterprise systems require reliable, repeatable, and verifiable output structures. This comprehensive guide walks you through the advanced techniques used by prompt engineers at pioneering labs.\n\n---\n\n### 1. Few-Shot Instruction Contextualization\n\nFew-shot prompting is the practice of embedding real input-output examples directly inside the developer instructions. This is highly effective because it defines the precise syntax, structural formatting, and length bounds without relying solely on conversational explanations.\n\n```json\n[\n  {\n    \"input\": \"Suggest names for a dark-themed cafe:\",\n    \"response\": {\n      \"name\": \"Midnight Brew\",\n      \"atmosphere\": \"Gothic Minimalism\",\n      \"accent\": \"Crimson & Slate\"\n    }\n  }\n]\n```\n\nAlways ensure your examples represent exact boundary cases (e.g. error handling or empty values).\n\n---\n\n### 2. Guardrails & Strict Validation Wrappers\n\nLLMs are inherently probabilistic. To enforce deterministic logic, wrap your prompts in a **Self-Correction Validation Loop**:\n- **Parser Route**: Parse the output of the first prompt with a strict validator (e.g., Zod, JSON parsing).\n- **Feedback Trace**: If the parser fails, dynamically generate a feedback prompt containing the exact stack-trace and ask the model to fix *only* the erroneous parts.\n- This recursive cycle can guarantee syntactically correct outputs in over 99.8% of runs when properly restricted.\n\n---\n\n### 3. Agentic Memory Design\n\nAgents need memory state boundaries. Instead of appending the entire raw chat history to the prompt context, use a **Summarization Buffer Store**:\n- Update a hidden 'metadata memory block' after every third turn.\n- Keep track of objective facts, active variables, and resolved user intents.\n\nBy keeping the context compact, you dramatically reduce pricing costs and prevent the middle-of-the-prompt forgetfulness common in standard models.",
+      "featuredImage": "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?q=80&w=1200",
+      "video": "https://assets.mixkit.co/videos/preview/mixkit-close-up-of-a-cyborg-eye-with-lines-of-data-42546-large.mp4",
+      "tags": [
+        "prompt-engineering",
+        "multi-agent",
+        "systems-design",
+        "ai-workflows"
+      ],
+      "relatedPrompts": [
+        "prompt-1",
+        "prompt-3"
+      ],
+      "createdAt": "2026-06-04T12:00:00Z",
+      "views": 483
+    },
+    {
+      "id": "guide-2",
+      "title": "Aesthetic Supremacy: Meticulous Control of Image Generators",
+      "description": "Master camera specs, composition ratios, lighting systems, style references, and absolute negative parameters in Midjourney V6 and Flux.",
+      "content": "### Art Direction with Artificial Intelligence\n\nThis guide outlines the precise artistic terminology needed to steer text-to-image models away from standard 'plastic' looks and toward editorial, award-winning aesthetics.\n\n---\n\n### 1. The Photographic Vocabulary\n\nTo strip the artificial quality from generation prompts, supply explicit lenses, camera focal numbers, sensor types, and lighting properties:\n- **Lenses & Depth**: Specify `Fujifilm Super EBC XF 56mm f/1.2 R`, `Hasselblad HC 100mm f/2.2` or `Leica Noctilux-M 50mm f/0.95`. This instructs the neural framework to recreate authentic bokeh, falloff, and edge distortion characteristics.\n- **Lighting Systems**: Avoid the words 'realistic' or 'hyper-detailed'. Instead, declare specific lighting styles: `rim lighting`, `chiaroscuro contrast`, `under-exposed shadows`, `volumetric light beams`, `golden hour sunset bounce`, or `diffused softbox reflection`.\n\n---\n\n### 2. Weighting & Style Referencing\n\nModern models allow subtle style controls:\n- **Midjourney --sref**: Pass raw Pinterest or Unsplash image URLs to bind styling directly without lengthy instructions.\n- **Stylize Parameters (`--stylize`)**: Use low stylization values (`50` to `150`) for realistic portraits to allow authentic skin textures like pores, freckles, and natural asymmetry. Use high values (`500` to `800`) for high fantasy and abstract digital art concepts.",
+      "featuredImage": "https://images.unsplash.com/photo-1541462608141-27b297b15525?q=80&w=1200",
+      "video": "",
+      "tags": [
+        "midjourney",
+        "image-generation",
+        "flux",
+        "art-direction",
+        "photography"
+      ],
+      "relatedPrompts": [
+        "prompt-2"
+      ],
+      "createdAt": "2026-06-05T09:12:00Z",
+      "views": 395
+    }
+  ],
+  "categories": [
+    "Text Generation",
+    "Image Generation",
+    "Video Generation",
+    "Software Engineering",
+    "Marketing & Copywriting",
+    "Web Search & Research",
+    "Audio & Music Workflows",
+    "Data Analysis"
+  ],
+  "tags": [
+    "software-engineering",
+    "architecture",
+    "typescript",
+    "clean-code",
+    "expert",
+    "midjourney",
+    "image-generation",
+    "cyberpunk",
+    "photography",
+    "cinematic",
+    "deepseek-r1",
+    "reasoning",
+    "algorithms",
+    "distributed-systems",
+    "math",
+    "copywriting",
+    "marketing",
+    "claude",
+    "conversion",
+    "sales",
+    "sora-prompt",
+    "video-generation",
+    "runway",
+    "film-noir",
+    "motion-control",
+    "prompt-engineering",
+    "multi-agent",
+    "systems-design",
+    "ai-workflows"
+  ],
+  "settings": {
+    "logoName": "ShubhPrompt",
+    "primaryColor": "#7C3AED",
+    "secondaryColor": "#06B6D4",
+    "seoTitle": "ShubhPrompt - Premium AI Prompt Marketplace & Guide Platform",
+    "seoDescription": "Discover outstanding premium prompts, templates, and actionable workflows for ChatGPT, Gemini, Claude, Midjourney, Flux, DeepSeek, and Sora.",
+    "socialTwitter": "https://twitter.com/shubhprompt",
+    "socialGithub": "https://github.com/shubhprompt",
+    "socialYoutube": "https://youtube.com/shubhprompt",
+    "socialInstagram": "https://instagram.com/shubhprompt",
+    "socialFacebook": "https://facebook.com/shubhprompt",
+    "contactEmail": "shubhprompt@gmail.com",
+    "adminEmail": "work.1shubham@gmail.com",
+    "adminPasswordHash": "db9b89b88307db495c6130b91dfbb38e5ee189b88ad3fc00",
+    "isConfiguredWithSupabase": true,
+    "supabaseUrl": "https://iuagtokbtxdvghnfegfy.supabase.co",
+    "supabaseAnonKey": "sb_publishable_bUHDC9fVa_vcvblsn2EdzQ_hJt_isdn",
+    "homepageSections": [
+      {
+        "id": "section-1",
+        "title": "Trending Systems",
+        "subtitle": "Most popular prompts dominating workflows this week.",
+        "type": "trending",
+        "enabled": true,
+        "order": 1
+      },
+      {
+        "id": "section-2",
+        "title": "Visual Synthesis Masters",
+        "subtitle": "Hyper-realistic prompt engines for Midjourney, Flux, and Recraft.",
+        "type": "category",
+        "value": "Image Generation",
+        "enabled": true,
+        "order": 2
+      },
+      {
+        "id": "section-3",
+        "title": "Elite Engineering Workflows",
+        "subtitle": "Industrial strength prompts for writing systems.",
+        "type": "category",
+        "value": "Software Engineering",
+        "enabled": true,
+        "order": 3
+      }
+    ]
+  },
+  "analytics": {
+    "totalVisitors": 4652,
+    "totalViews": 8139,
+    "totalCopies": 3401,
+    "trackingLogs": []
+  },
+  "watch_prompts": []
+}

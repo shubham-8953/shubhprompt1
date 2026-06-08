@@ -1,0 +1,132 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300..900;1,300..900&family=Space+Grotesk:wght@300..700&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --color-background: #0F172A;
+  --color-section: #1E293B;
+  --color-card: #24324A;
+  --color-primary: #7C3AED;
+  --color-secondary: #06B6D4;
+  --color-accent: #F59E0B;
+  --color-text-main: #F8FAFC;
+  --color-text-muted: #CBD5E1;
+
+  /* Force standard dark shades to map to the new premium palette */
+  --color-slate-950: #0F172A;
+  --color-slate-900: #0F172A;
+  --color-slate-850: #1E293B;
+  --color-slate-800: #1E293B;
+  --color-slate-700: #24324A;
+  
+  --color-gray-950: #0F172A;
+  --color-gray-900: #0F172A;
+  --color-gray-850: #1E293B;
+  --color-gray-800: #1E293B;
+  --color-gray-700: #24324A;
+
+  --color-zinc-950: #0F172A;
+  --color-zinc-900: #0F172A;
+  --color-zinc-850: #1E293B;
+  --color-zinc-800: #1E293B;
+  --color-zinc-700: #24324A;
+
+  --color-black: #0F172A;
+}
+
+/* Custom Scrollbar Styles for Glassmorphism alignment */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0F172A;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(124, 58, 237, 0.2);
+  border-radius: 999px;
+  border: 2px solid #0F172A;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 58, 237, 0.4);
+}
+
+/* Base styling updates */
+body {
+  background-color: #0F172A;
+  font-family: var(--font-sans);
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-display);
+}
+
+/* Keyframe animations for glow-borders, volumetric pulses and shimmers */
+@keyframes glow-border {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(124, 58, 237, 0.1), inset 0 0 10px rgba(124, 58, 237, 0.05);
+    border-color: rgba(124, 58, 237, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(124, 58, 237, 0.3), inset 0 0 20px rgba(124, 58, 237, 0.15);
+    border-color: rgba(124, 58, 237, 0.45);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.9;
+    filter: drop-shadow(0 0 6px rgba(6, 182, 212, 0.2));
+  }
+  50% {
+    transform: scale(1.02);
+    opacity: 1;
+    filter: drop-shadow(0 0 15px rgba(6, 182, 212, 0.6));
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.glow-border {
+  animation: glow-border 4s infinite ease-in-out;
+}
+
+.pulse-glow {
+  animation: pulse-glow 3s infinite ease-in-out;
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #1E293B 25%, #24324A 50%, #1E293B 75%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite linear;
+}
+
+/* Entry transitions */
+.animate-fadeIn {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
