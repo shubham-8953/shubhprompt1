@@ -165,7 +165,7 @@ export default function AdminPanel({
   const [socialInstagram, setSocialInstagram] = useState(settings.socialInstagram || "");
   const [socialFacebook, setSocialFacebook] = useState(settings.socialFacebook || "");
   const [contactEmail, setContactEmail] = useState(settings.contactEmail || "shubhprompt@gmail.com");
-  const [adminEmail, setAdminEmail] = useState(settings.adminEmail || "admin@shubhprompt.online");
+  const [adminEmail, setAdminEmail] = useState(settings.adminEmail || "work.1shubham@gmail.com");
   const [newAdminPassword, setNewAdminPassword] = useState("");
 
   const coverFileRef = useRef<HTMLInputElement>(null);
@@ -185,7 +185,7 @@ export default function AdminPanel({
       setSocialInstagram(settings.socialInstagram || "");
       setSocialFacebook(settings.socialFacebook || "");
       setContactEmail(settings.contactEmail || "shubhprompt@gmail.com");
-      setAdminEmail(settings.adminEmail || "admin@shubhprompt.online");
+      setAdminEmail(settings.adminEmail || "work.1shubham@gmail.com");
     }
   }, [settings]);
 
@@ -458,7 +458,7 @@ export default function AdminPanel({
               <input
                 id="admin-email-input"
                 type="email"
-                placeholder="admin@shubhprompt.online"
+                placeholder="Enter admin email..."
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-[#0F172A] border border-violet-500/20 focus:border-cyan-500 rounded-xl px-4 py-3 text-sm text-white focus:outline-none transition-all placeholder-gray-500 font-sans"
@@ -1841,7 +1841,7 @@ export default function AdminPanel({
                   <label className="block text-[10px] text-gray-400 mb-1 font-mono uppercase font-medium">Administrator Email ID</label>
                   <input
                     type="email"
-                    placeholder="admin@shubhprompt.online"
+                    placeholder="work.1shubham@gmail.com"
                     value={adminEmail || ""}
                     onChange={(e) => setAdminEmail(e.target.value)}
                     className="w-full bg-[#0F172A] border border-violet-500/20 focus:border-cyan-500 rounded-xl px-4 py-2 text-xs text-white text-sans"

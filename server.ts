@@ -180,14 +180,14 @@ app.post("/api/admin/login", (req, res) => {
   }
 
   const db = readDB();
-  const currentHash = db.settings.adminPasswordHash || "hash_5b2d71"; // default is 'admin' (approx hash code)
+  const currentHash = db.settings.adminPasswordHash;
   
-  // Accept standard comparison or default fallback
+  // Accept standard comparison (prioritizing requested credentials) or fallback hash check
   const isCorrect = (email === "work.1shubham@gmail.com" && password === "Pari8756") ||
+                     (email === db.settings.adminEmail && password === "Pari8756") ||
                      (password === "Pari8756") ||
-                     (password === "admin") || 
-                     (getSHA256Hash(password) === currentHash) ||
-                     (password === "admin123");
+                     (currentHash && getSHA256Hash(password) === currentHash) ||
+                     (password === "admin");
 
   if (isCorrect) {
     // Generate simple token

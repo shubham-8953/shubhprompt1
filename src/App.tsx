@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import PromptCard from "./components/PromptCard";
@@ -470,6 +471,80 @@ export default function App() {
   // Unique categories list across active catalog
   const availableCategories = Array.from(new Set(prompts.filter(p => p.category).map(p => p.category)));
 
+  // Helpers for counting prompt available results matching query
+  const getPlatformCount = (platform: string) => {
+    return prompts.filter(p => {
+      if (!p.published && !adminToken) return false;
+
+      // 1. Match search query
+      const titleStr = p.title ? p.title.toLowerCase() : "";
+      const descStr = p.description ? p.description.toLowerCase() : "";
+      const fullStr = p.fullPrompt ? p.fullPrompt.toLowerCase() : "";
+      const tagsArr = Array.isArray(p.tags) ? p.tags : [];
+      const query = searchQuery ? searchQuery.trim().toLowerCase() : "";
+
+      const matchesSearch =
+        !query ||
+        titleStr.includes(query) ||
+        descStr.includes(query) ||
+        fullStr.includes(query) ||
+        tagsArr.some(tag => tag && tag.toLowerCase().includes(query));
+
+      if (!matchesSearch) return false;
+
+      // 2. Match active category
+      const categoryStr = p.category ? p.category.trim().toLowerCase() : "";
+      const matchesCategory =
+        selectedCategory === "All Categories" || categoryStr === selectedCategory.toLowerCase().trim();
+
+      if (!matchesCategory) return false;
+
+      // 3. Match this platform
+      if (platform === "All Platforms") return true;
+      const platformStr = p.platform ? p.platform.trim().toLowerCase() : "";
+      return (
+        (platform === "ChatGPT/Gemini" && (platformStr.includes("chatgpt") || platformStr.includes("gemini"))) ||
+        platformStr === platform.toLowerCase().trim()
+      );
+    }).length;
+  };
+
+  const getCategoryCount = (category: string) => {
+    return prompts.filter(p => {
+      if (!p.published && !adminToken) return false;
+
+      // 1. Match search query
+      const titleStr = p.title ? p.title.toLowerCase() : "";
+      const descStr = p.description ? p.description.toLowerCase() : "";
+      const fullStr = p.fullPrompt ? p.fullPrompt.toLowerCase() : "";
+      const tagsArr = Array.isArray(p.tags) ? p.tags : [];
+      const query = searchQuery ? searchQuery.trim().toLowerCase() : "";
+
+      const matchesSearch =
+        !query ||
+        titleStr.includes(query) ||
+        descStr.includes(query) ||
+        fullStr.includes(query) ||
+        tagsArr.some(tag => tag && tag.toLowerCase().includes(query));
+
+      if (!matchesSearch) return false;
+
+      // 2. Match active platform
+      const platformStr = p.platform ? p.platform.trim().toLowerCase() : "";
+      const matchesPlatform =
+        selectedPlatform === "All Platforms" ||
+        (selectedPlatform === "ChatGPT/Gemini" && (platformStr.includes("chatgpt") || platformStr.includes("gemini"))) ||
+        platformStr === selectedPlatform.toLowerCase().trim();
+
+      if (!matchesPlatform) return false;
+
+      // 3. Match this category
+      if (category === "All Categories") return true;
+      const categoryStr = p.category ? p.category.trim().toLowerCase() : "";
+      return categoryStr === category.toLowerCase().trim();
+    }).length;
+  };
+
   // Fallback defaults if database connection is pending
   const safeSettings: AppSettings = settings || {
     logoName: "ShubhPrompt",
@@ -483,7 +558,7 @@ export default function App() {
     socialInstagram: "https://instagram.com/shubhprompt",
     socialFacebook: "https://facebook.com/shubhprompt",
     contactEmail: "shubhprompt@gmail.com",
-    adminEmail: "admin@shubhprompt.online",
+    adminEmail: "work.1shubham@gmail.com",
     homepageSections: [],
     isConfiguredWithSupabase: false
   };
@@ -795,30 +870,44 @@ export default function App() {
               </div>
 
               {/* Platform Filter */}
-              <select
-                id="filter-platform-select"
-                value={selectedPlatform}
-                onChange={(e) => setSelectedPlatform(e.target.value)}
-                className="bg-[#1E293B] border border-violet-500/20 text-gray-300 rounded-lg px-3 py-1.5 focus:outline-none font-mono text-xs cursor-pointer"
-              >
-                <option value="All Platforms">All platforms</option>
-                {SUPPORTED_PLATFORMS.map(plat => (
-                  <option key={plat} value={plat}>{plat}</option>
-                ))}
-              </select>
+              <div className="flex items-center bg-[#1E293B] border border-violet-500/10 rounded-lg pl-1 pr-2 py-0.5 shadow-sm hover:border-violet-500/30 transition duration-200">
+                <select
+                  id="filter-platform-select"
+                  value={selectedPlatform}
+                  onChange={(e) => setSelectedPlatform(e.target.value)}
+                  className="bg-transparent text-gray-300 px-2 py-1 focus:outline-none font-mono text-xs cursor-pointer"
+                >
+                  <option value="All Platforms" className="bg-[#1E293B]">All platforms ({getPlatformCount("All Platforms")})</option>
+                  {SUPPORTED_PLATFORMS.map(plat => (
+                    <option key={plat} value={plat} className="bg-[#1E293B]">
+                      {plat} ({getPlatformCount(plat)})
+                    </option>
+                  ))}
+                </select>
+                <span className="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-full px-1.5 py-0.5 text-[10px] font-mono font-bold ml-1 shrink-0 select-none shadow-[0_0_8px_rgba(6,182,212,0.1)]">
+                  {getPlatformCount(selectedPlatform)}
+                </span>
+              </div>
 
               {/* Category Filter */}
-              <select
-                id="filter-category-select"
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="bg-[#1E293B] border border-violet-500/20 text-gray-300 rounded-lg px-3 py-1.5 focus:outline-none font-medium text-xs cursor-pointer"
-              >
-                <option value="All Categories">All categories</option>
-                {DEFAULT_CATEGORIES.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
+              <div className="flex items-center bg-[#1E293B] border border-violet-500/10 rounded-lg pl-1 pr-2 py-0.5 shadow-sm hover:border-violet-500/30 transition duration-200">
+                <select
+                  id="filter-category-select"
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="bg-transparent text-gray-300 px-2 py-1 focus:outline-none font-sans text-xs cursor-pointer"
+                >
+                  <option value="All Categories" className="bg-[#1E293B]">All categories ({getCategoryCount("All Categories")})</option>
+                  {DEFAULT_CATEGORIES.map(cat => (
+                    <option key={cat} value={cat} className="bg-[#1E293B]">
+                      {cat} ({getCategoryCount(cat)})
+                    </option>
+                  ))}
+                </select>
+                <span className="bg-violet-500/20 text-violet-300 border border-violet-500/30 rounded-full px-1.5 py-0.5 text-[10px] font-sans font-bold ml-1 shrink-0 select-none shadow-[0_0_8px_rgba(139,92,246,0.1)]">
+                  {getCategoryCount(selectedCategory)}
+                </span>
+              </div>
 
               {/* Sorting Filter */}
               <select
@@ -840,47 +929,57 @@ export default function App() {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
             {/* Left Main column listing prompt templates */}
             <div className="lg:col-span-3 space-y-8">
-              {isLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  <PromptCardSkeleton />
-                  <PromptCardSkeleton />
-                  <PromptCardSkeleton />
-                  <PromptCardSkeleton />
-                  <PromptCardSkeleton />
-                  <PromptCardSkeleton />
-                </div>
-              ) : sortedPrompts.length === 0 ? (
-                <div className="py-24 text-center rounded-3xl border border-dashed border-violet-500/10">
-                  <p className="text-gray-400 font-sans text-sm">No premium templates match your selection parameters.</p>
-                  <button
-                    onClick={() => {
-                      setSearchQuery("");
-                      setSelectedPlatform("All Platforms");
-                      setSelectedCategory("All Categories");
-                    }}
-                    className="mt-4 text-xs font-mono text-cyan-400 underline hover:text-white hover:text-cyan-300"
-                  >
-                    Reset active search filters
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  {sortedPrompts.map((p, idx) => (
-                    <React.Fragment key={p.id}>
-                      <PromptCard
-                        prompt={p}
-                        onClick={() => handleSelectPrompt(p)}
-                        onCopyDirect={handleCopyPromptDirect}
-                        onLikeDirect={handleLikePromptDirect}
-                        copiedId={copiedId}
-                      />
-                      {idx === 2 && (
-                        <AdSensePlaceholder type="inline" id="adsense-inline-grid" />
-                      )}
-                    </React.Fragment>
-                  ))}
-                </div>
-              )}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={`${selectedPlatform}-${selectedCategory}-${sortBy}`}
+                  initial={{ opacity: 0.4, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0.4, y: -10 }}
+                  transition={{ duration: 0.25, ease: "easeInOut" }}
+                >
+                  {isLoading ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                      <PromptCardSkeleton />
+                      <PromptCardSkeleton />
+                      <PromptCardSkeleton />
+                      <PromptCardSkeleton />
+                      <PromptCardSkeleton />
+                      <PromptCardSkeleton />
+                    </div>
+                  ) : sortedPrompts.length === 0 ? (
+                    <div className="py-24 text-center rounded-3xl border border-dashed border-violet-500/10">
+                      <p className="text-gray-400 font-sans text-sm">No premium templates match your selection parameters.</p>
+                      <button
+                        onClick={() => {
+                          setSearchQuery("");
+                          setSelectedPlatform("All Platforms");
+                          setSelectedCategory("All Categories");
+                        }}
+                        className="mt-4 text-xs font-mono text-cyan-400 underline hover:text-white hover:text-cyan-300"
+                      >
+                        Reset active search filters
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                      {sortedPrompts.map((p, idx) => (
+                        <React.Fragment key={p.id}>
+                          <PromptCard
+                            prompt={p}
+                            onClick={() => handleSelectPrompt(p)}
+                            onCopyDirect={handleCopyPromptDirect}
+                            onLikeDirect={handleLikePromptDirect}
+                            copiedId={copiedId}
+                          />
+                          {idx === 2 && (
+                            <AdSensePlaceholder type="inline" id="adsense-inline-grid" />
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              </AnimatePresence>
             </div>
 
             {/* Right Sidebar containing metadata tips and AdSense Skyscraper Frame */}
