@@ -93,7 +93,7 @@ export default function Navbar({
               <div className="absolute -inset-1 rounded-lg bg-gradient-to-r from-violet-600 to-cyan-500 opacity-70 blur-md group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
               <div className="relative px-4 py-2 bg-[#1E293B] rounded-lg border border-violet-500/20 flex items-center gap-2">
                 <img
-                  src="/assets/logo.png"
+                  src="/logo.png"
                   alt="Shubh Prompt Logo"
                   className="w-5 h-5 object-contain rounded"
                   onError={(e) => {
