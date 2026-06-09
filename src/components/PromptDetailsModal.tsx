@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Prompt } from "../types";
-import { X, Copy, Share2, Heart, ExternalLink, Sparkles, Check, Play, Eye, FileText, LayoutGrid, Cpu, Layers } from "lucide-react";
+import { X, Copy, Share2, Heart, ExternalLink, Sparkles, Check, Play, Eye, FileText, LayoutGrid, Cpu, Layers, QrCode } from "lucide-react";
+import QRCode from "qrcode";
+import { motion } from "motion/react";
 
 interface PromptDetailsModalProps {
   prompt: Prompt;
@@ -103,6 +105,34 @@ export default function PromptDetailsModal({
   const [isPlayingVideo, setIsPlayingVideo] = useState(false);
   const [shareFeedback, setShareFeedback] = useState(false);
   const [localCopied, setLocalCopied] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
+
+  useEffect(() => {
+    let active = true;
+    const generateQrUrl = async () => {
+      try {
+        const u = `${window.location.origin}/prompt/${prompt.id}`;
+        const dataUrl = await QRCode.toDataURL(u, {
+          width: 300,
+          margin: 1,
+          color: {
+            dark: "#0F172A", // Dark slate fill
+            light: "#FFFFFF"  // Pure white border
+          },
+          errorCorrectionLevel: "H"
+        });
+        if (active) {
+          setQrCodeUrl(dataUrl);
+        }
+      } catch (err) {
+        console.error("QR Code generation failed", err);
+      }
+    };
+    generateQrUrl();
+    return () => {
+      active = false;
+    };
+  }, [prompt.id]);
 
   const PLATFORM_URLS: Record<string, string> = {
     chatgpt: "https://chatgpt.com",
@@ -398,6 +428,53 @@ export default function PromptDetailsModal({
                   );
                 })}
 
+              </div>
+
+              {/* QR Code Container for Mobile Instancy */}
+              <div className="p-5 rounded-2xl bg-slate-900/40 border border-violet-500/10 space-y-3.5 shadow-xl flex flex-col items-center text-center">
+                <div className="flex items-center gap-1.5 self-start">
+                  <QrCode className="w-4 h-4 text-cyan-400 animate-pulse" />
+                  <h4 className="text-[10px] uppercase font-mono tracking-widest text-[#94A3B8] font-bold">
+                    Scan for Mobile
+                  </h4>
+                </div>
+                
+                <p className="text-[11px] font-sans text-gray-450 leading-relaxed text-[#94A3B8]">
+                  Scan to preview and instantly run this prompt on your mobile phone or tablet.
+                </p>
+
+                <div className="relative group p-2.5 bg-white rounded-2xl shadow-[0_0_20px_rgba(124,58,237,0.1)] hover:shadow-[0_0_35px_rgba(6,182,212,0.25)] ring-1 ring-violet-500/20 transition-all duration-300 overflow-hidden">
+                  {qrCodeUrl ? (
+                    <img
+                      src={qrCodeUrl}
+                      alt="Prompt QR Code"
+                      className="w-36 h-36 rounded-xl select-none"
+                    />
+                  ) : (
+                    <div className="w-36 h-36 flex items-center justify-center text-xs font-mono text-gray-500">
+                      Generating QR...
+                    </div>
+                  )}
+
+                  {/* Laser Sweeper Sweep Overlay */}
+                  {qrCodeUrl && (
+                    <motion.div
+                      animate={{
+                        y: ["0px", "144px", "0px"]
+                      }}
+                      transition={{
+                        duration: 3,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                      }}
+                      className="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_8px_rgba(34,211,238,0.8)] z-10 pointer-events-none"
+                    />
+                  )}
+                </div>
+
+                <div className="w-full text-[9px] font-mono text-cyan-400/80 bg-slate-950/65 border border-white/5 rounded-lg py-1.5 px-2 max-w-full truncate select-all" title="Direct URL">
+                  {`${window.location.origin}/prompt/${prompt.id}`}
+                </div>
               </div>
 
               {/* Metrics audit */}

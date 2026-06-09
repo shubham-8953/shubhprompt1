@@ -4,6 +4,7 @@ import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import PromptCard from "./components/PromptCard";
 import PromptDetailsModal from "./components/PromptDetailsModal";
+import PromptCompareModal from "./components/PromptCompareModal";
 import GuideSection from "./components/GuideSection";
 import AdminPanel from "./components/AdminPanel";
 import ToastNotification, { ToastItem } from "./components/ToastNotification";
@@ -39,6 +40,29 @@ export default function App() {
   const [viewedPrompts, setViewedPrompts] = useState<string[]>([]);
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [adminToken, setAdminToken] = useState<string | null>(null);
+
+  // Dual Prompt Comparison states & handlers
+  const [compareList, setCompareList] = useState<Prompt[]>([]);
+  const [showCompareModal, setShowCompareModal] = useState<boolean>(false);
+
+  const handleToggleCompare = (p: Prompt) => {
+    setCompareList(prev => {
+      const exists = prev.some(item => item.id === p.id);
+      if (exists) {
+        return prev.filter(item => item.id !== p.id);
+      } else {
+        if (prev.length >= 2) {
+          triggerToast("info", "You can compare up to 2 prompts at the same time.", "Comparison Limit");
+          return prev;
+        }
+        const updated = [...prev, p];
+        if (updated.length === 2) {
+          setShowCompareModal(true);
+        }
+        return updated;
+      }
+    });
+  };
 
   // Toast notifications state
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -139,6 +163,39 @@ export default function App() {
 
     return () => window.removeEventListener("hashchange", handleHash);
   }, []);
+
+  // Support deep-linking and QR code scanning for individual prompts automatically
+  useEffect(() => {
+    if (isLoading || prompts.length === 0) return;
+
+    const checkDirectRouting = () => {
+      // 1. Pathname route: /prompt/:id
+      const pathParts = window.location.pathname.split("/");
+      const promptIdFromPath = pathParts[1] === "prompt" ? pathParts[2] : null;
+
+      // 2. Query param: ?prompt=:id
+      const urlParams = new URLSearchParams(window.location.search);
+      const promptIdFromQuery = urlParams.get("prompt");
+
+      // 3. Hash route: #prompt-:id
+      const hashMatches = window.location.hash.match(/^#prompt-(.+)$/);
+      const promptIdFromHash = hashMatches ? hashMatches[1] : null;
+
+      const targetId = promptIdFromPath || promptIdFromQuery || promptIdFromHash;
+      if (targetId) {
+        const matched = prompts.find(p => p.id === targetId);
+        if (matched) {
+          // Select prompt to open modal
+          setSelectedPrompt(matched);
+        }
+      }
+    };
+
+    checkDirectRouting();
+
+    window.addEventListener("popstate", checkDirectRouting);
+    return () => window.removeEventListener("popstate", checkDirectRouting);
+  }, [isLoading, prompts]);
 
   useEffect(() => {
     (window as any).selectedPlatform = selectedPlatform;
@@ -341,6 +398,13 @@ export default function App() {
   // Interactive copying action controllers
   const handleSelectPrompt = (prompt: Prompt) => {
     setSelectedPrompt(prompt);
+
+    // Sync URL path with current query/detail view state
+    const newPath = `/prompt/${prompt.id}`;
+    if (window.location.pathname !== newPath) {
+      window.history.pushState({ promptId: prompt.id }, "", newPath);
+    }
+
     if (!viewedPrompts.includes(prompt.id)) {
       setViewedPrompts(prev => [...prev, prompt.id]);
       // update state counter locally
@@ -686,6 +750,8 @@ export default function App() {
                             onCopyDirect={handleCopyPromptDirect}
                             onLikeDirect={handleLikePromptDirect}
                             copiedId={copiedId}
+                            isComparing={compareList.some(comp => comp.id === p.id)}
+                            onToggleCompare={handleToggleCompare}
                           />
                         ))}
                     </div>
@@ -739,6 +805,8 @@ export default function App() {
                             onCopyDirect={handleCopyPromptDirect}
                             onLikeDirect={handleLikePromptDirect}
                             copiedId={copiedId}
+                            isComparing={compareList.some(comp => comp.id === p.id)}
+                            onToggleCompare={handleToggleCompare}
                           />
                         ))}
                     </div>
@@ -783,6 +851,8 @@ export default function App() {
                             onCopyDirect={handleCopyPromptDirect}
                             onLikeDirect={handleLikePromptDirect}
                             copiedId={copiedId}
+                            isComparing={compareList.some(comp => comp.id === p.id)}
+                            onToggleCompare={handleToggleCompare}
                           />
                         ))}
                       </div>
@@ -970,6 +1040,8 @@ export default function App() {
                             onCopyDirect={handleCopyPromptDirect}
                             onLikeDirect={handleLikePromptDirect}
                             copiedId={copiedId}
+                            isComparing={compareList.some(comp => comp.id === p.id)}
+                            onToggleCompare={handleToggleCompare}
                           />
                           {idx === 2 && (
                             <AdSensePlaceholder type="inline" id="adsense-inline-grid" />
@@ -1199,6 +1271,8 @@ export default function App() {
                   onCopyDirect={handleCopyPromptDirect}
                   onLikeDirect={handleLikePromptDirect}
                   copiedId={copiedId}
+                  isComparing={compareList.some(comp => comp.id === p.id)}
+                  onToggleCompare={handleToggleCompare}
                 />
               ))}
           </div>
@@ -1243,13 +1317,76 @@ export default function App() {
       {selectedPrompt && (
         <PromptDetailsModal
           prompt={selectedPrompt}
-          onClose={() => setSelectedPrompt(null)}
+          onClose={() => {
+            setSelectedPrompt(null);
+            // Restore clean home state path
+            if (window.location.pathname !== "/") {
+              window.history.pushState(null, "", "/");
+            }
+          }}
           onCopyDirect={handleCopyPromptText}
           onLikeDirect={handleLikePromptText}
           onShareDirect={handleSharePromptText}
           copiedId={copiedId}
         />
       )}
+
+      {/* --- IMMERSIVE OVERLAY: PROMPT COMPARE MODAL --- */}
+      {showCompareModal && compareList.length === 2 && (
+        <PromptCompareModal
+          promptA={compareList[0]}
+          promptB={compareList[1]}
+          onClose={() => setShowCompareModal(false)}
+          onClearCompare={() => setCompareList([])}
+        />
+      )}
+
+      {/* --- Floating Compare selection helper banner --- */}
+      <AnimatePresence>
+        {compareList.length > 0 && !showCompareModal && (
+          <motion.div
+            initial={{ y: 80, x: "-50%", opacity: 0 }}
+            animate={{ y: 0, x: "-50%", opacity: 1 }}
+            exit={{ y: 80, x: "-50%", opacity: 0 }}
+            transition={{ type: "spring", stiffness: 280, damping: 25 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900/95 border border-cyan-500/30 px-6 py-3.5 rounded-2xl flex items-center gap-5 shadow-[0_15px_40px_rgba(6,182,212,0.25)] backdrop-blur-md ring-1 ring-cyan-500/10"
+          >
+            <div className="flex items-center gap-3 animate-fadeIn">
+              <span className="flex h-2.5 w-2.5 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span>
+              </span>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-mono font-bold text-cyan-400 uppercase tracking-widest leading-none">
+                  Comparison Chamber
+                </span>
+                <span className="text-xs text-gray-200 font-sans leading-none mt-1">
+                  {compareList.length === 1
+                    ? "1 prompt selected. Select another to compare!"
+                    : `${compareList.length} prompts selected.`}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 border-l border-white/10 pl-4 h-8">
+              {compareList.length === 2 && (
+                <button
+                  onClick={() => setShowCompareModal(true)}
+                  className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-violet-600 to-cyan-500 text-white font-sans text-xs font-bold hover:brightness-110 active:scale-95 transition-all shadow-[0_0_15px_rgba(124,58,237,0.4)]"
+                >
+                  Compare Now
+                </button>
+              )}
+              <button
+                onClick={() => setCompareList([])}
+                className="px-2.5 py-1.5 rounded-lg text-[10px] font-mono text-gray-400 hover:text-white hover:bg-white/5 transition uppercase tracking-wider font-semibold"
+              >
+                Clear
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* --- IMMERSIVE OVERLAY: SECURE ADMIN INLINE PROMPT --- */}
       {isAdminLoginModalOpen && (
@@ -1451,7 +1588,7 @@ export default function App() {
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-6 border-t border-violet-500/5 text-center font-mono text-[10px] text-gray-600 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-          <span>&copy; {new Date().getFullYear()} {safeSettings.logoName}. All rights reserved. &bull; Secure AdSense Approved Channel</span>
+          <span>&copy; {new Date().getFullYear()} {safeSettings.logoName}. All rights reserved.</span>
           <div className="flex items-center gap-4 justify-center">
             <button onClick={() => setActiveTab("privacy")} className="hover:underline hover:text-gray-400">Privacy</button>
             <button onClick={() => setActiveTab("terms")} className="hover:underline hover:text-gray-400">Terms</button>
