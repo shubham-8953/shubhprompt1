@@ -92,7 +92,21 @@ export default function Navbar({
             <div className="relative group">
               <div className="absolute -inset-1 rounded-lg bg-gradient-to-r from-violet-600 to-cyan-500 opacity-70 blur-md group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
               <div className="relative px-4 py-2 bg-[#1E293B] rounded-lg border border-violet-500/20 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-cyan-400 animate-pulse" />
+                <img
+                  src="/assets/logo.png"
+                  alt="Shubh Prompt Logo"
+                  className="w-5 h-5 object-contain rounded"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                    const fallback = document.getElementById("logo-fallback-sparkles");
+                    if (fallback) fallback.style.display = "block";
+                  }}
+                />
+                <Sparkles
+                  id="logo-fallback-sparkles"
+                  className="w-5 h-5 text-cyan-400 animate-pulse"
+                  style={{ display: "none" }}
+                />
                 <span className="font-sans font-bold tracking-tight text-white text-lg bg-gradient-to-r from-cyan-400 via-violet-300 to-white bg-clip-text text-transparent">
                   {settings.logoName || "ShubhPrompt"}
                 </span>

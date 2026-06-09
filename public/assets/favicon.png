@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="100%" height="100%">
+  <defs>
+    <linearGradient id="glowFavicon" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7C3AED" />
+      <stop offset="100%" stop-color="#06B6D4" />
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="32" fill="#0F172A" stroke="url(#glowFavicon)" stroke-width="6" />
+  <path d="M64 24 L74 54 L104 64 L74 74 L64 104 L54 74 L24 64 L54 54 Z" fill="url(#glowFavicon)" />
+</svg>
