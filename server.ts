@@ -654,6 +654,17 @@ app.get("/robots.txt", (req, res) => {
 
 // Setup development / production middleware compiler config
 async function startServer() {
+  // Ensure the requested credentials (work.1shubham@gmail.com / Pari8756) are written to database on boot
+  try {
+    const db = readDB();
+    db.settings.adminEmail = "work.1shubham@gmail.com";
+    db.settings.adminPasswordHash = getSHA256Hash("Pari8756");
+    writeDB(db);
+    console.log(`[ShubhPrompt] Administrative credentials ("work.1shubham@gmail.com" / "Pari8756") synchronized successfully.`);
+  } catch (err) {
+    console.error("[ShubhPrompt] Failed to sync administrative credentials on boot", err);
+  }
+
   if (process.env.NODE_ENV !== "production") {
     // Vite Dev Mode configuration
     const vite = await createViteServer({
