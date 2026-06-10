@@ -1,21 +1,21 @@
 import React, { useState, useRef, useEffect } from "react";
-import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc } from "firebase/firestore";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getFirestore, collection, addDoc, getDocs, query, orderBy } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyABc84Y9DWkFqh3MqY3sgqk-rKOi7OSDKk",
-  authDomain: "shubhprompt-db.firebaseapp.com",
-  databaseURL: "https://shubhprompt-db-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "shubhprompt-db",
-  storageBucket: "shubhprompt-db.firebasestorage.app",
-  messagingSenderId: "751523654989",
-  appId: "1:751523654989:web:3e46315590d60f16399b04"
+  apiKey: "AIzaSyAO2iZB-WLyQDUPGm_eanBXCrncupD-GvQ",
+  authDomain: "://firebaseapp.com",
+  projectId: "shubhprompt-new",
+  storageBucket: "shubhprompt-new.firebasestorage.app",
+  messagingSenderId: "1098185002879",
+  appId: "1:1098185002879:web:fbd7d5544aec9f60aa944a"
 };
 
-const app = initializeApp(firebaseConfig);
+// Double-initialization safety check block
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
-const storage = getStorage(app);
+
+export { db, collection, addDoc, getDocs, query, orderBy };
 
 import { Prompt, Guide, WatchPrompt, AppSettings, AnalyticsSummary, SUPPORTED_PLATFORMS, DEFAULT_CATEGORIES } from "../types";
 import {
@@ -349,19 +349,14 @@ export default function AdminPanel({
 
         await addDoc(collection(db, "prompts"), {
           title: promptTitleState.trim(),
-          tagline: taglineState.trim(),
           raw_prompt: fullInstructionsState.trim(),
           engine_category: targetPlatformState,
-          classification: categoryClassificationState,
-          search_tags: tagsState.split(',').map((t: string) => t.trim()),
           image_url: cloudUrl,
-          is_featured: featuredCheckboxState,
-          is_published: publishCheckboxState,
           created_at: new Date().toISOString()
         });
 
         setUploadStatus("🎉 SUCCESS: Prompt is Live on Website!");
-        alert("Prompt Published Successfully via ImgBB & Firestore!");
+        alert("Prompt Published Successfully!");
         
         // Reset states
         setImageFile(null);

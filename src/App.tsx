@@ -4,13 +4,12 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, collection, getDocs, query, orderBy } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyABc84Y9DWkFqh3MqY3sgqk-rKOi7OSDKk",
-  authDomain: "shubhprompt-db.firebaseapp.com",
-  databaseURL: "https://shubhprompt-db-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "shubhprompt-db",
-  storageBucket: "shubhprompt-db.firebasestorage.app",
-  messagingSenderId: "751523654989",
-  appId: "1:751523654989:web:3e46315590d60f16399b04"
+  apiKey: "AIzaSyAO2iZB-WLyQDUPGm_eanBXCrncupD-GvQ",
+  authDomain: "://firebaseapp.com",
+  projectId: "shubhprompt-new",
+  storageBucket: "shubhprompt-new.firebasestorage.app",
+  messagingSenderId: "1098185002879",
+  appId: "1:1098185002879:web:fbd7d5544aec9f60aa944a"
 };
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -178,13 +177,13 @@ export default function App() {
           const data = doc.data();
           list.push({
             id: doc.id,
-            title: data.title || "",
-            tagline: data.tagline || "",
+            title: data.title || "Untitled Prompt",
+            tagline: data.tagline || (data.raw_prompt ? (data.raw_prompt.substring(0, 110) + "...") : "Industrial-grade prompt asset."),
             raw_prompt: data.raw_prompt || "",
-            engine_category: data.engine_category || "",
-            classification: data.classification || "",
-            search_tags: data.search_tags || [],
-            image_url: data.image_url || ""
+            engine_category: data.engine_category || "General",
+            classification: data.classification || "AI Prompt",
+            search_tags: data.search_tags || ["AI", "Creative"],
+            image_url: data.image_url || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600"
           });
         });
         setPromptsList(list);
