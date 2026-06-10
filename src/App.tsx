@@ -1,5 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getFirestore, collection, getDocs, query, orderBy } from "firebase/firestore";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyABc84Y9DWkFqh3MqY3sgqk-rKOi7OSDKk",
+  authDomain: "shubhprompt-db.firebaseapp.com",
+  databaseURL: "https://shubhprompt-db-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "shubhprompt-db",
+  storageBucket: "shubhprompt-db.firebasestorage.app",
+  messagingSenderId: "751523654989",
+  appId: "1:751523654989:web:3e46315590d60f16399b04"
+};
+
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+const db = getFirestore(app);
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import PromptCard from "./components/PromptCard";
@@ -12,9 +27,13 @@ import CompliancePages from "./components/CompliancePages";
 import AdSensePlaceholder from "./components/AdSensePlaceholder";
 import { Prompt, Guide, WatchPrompt, AppSettings, AnalyticsSummary, SUPPORTED_PLATFORMS, DEFAULT_CATEGORIES } from "./types";
 import { PromptCardSkeleton, GuideCardSkeleton, WatchPromptSkeleton } from "./components/SkeletonLoader";
-import { Sparkles, Star, SlidersHorizontal, ArrowUpDown, HelpCircle, X, Check, Heart, Mail, Github, Twitter, Info, Lock, FolderOpen, Film, Play, Video, Instagram, Youtube, Facebook } from "lucide-react";
+import { Sparkles, Copy, Star, SlidersHorizontal, ArrowUpDown, HelpCircle, X, Check, Heart, Mail, Github, Twitter, Info, Lock, FolderOpen, Film, Play, Video, Instagram, Youtube, Facebook } from "lucide-react";
 
 export default function App() {
+  const [promptsList, setPromptsList] = useState<any[]>([]);
+  const [isPromptsListLoading, setIsPromptsListLoading] = useState<boolean>(true);
+  const [copiedFirebaseId, setCopiedFirebaseId] = useState<string | null>(null);
+
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [guides, setGuides] = useState<Guide[]>([]);
   const [watchPrompts, setWatchPrompts] = useState<WatchPrompt[]>([]);
@@ -147,6 +166,36 @@ export default function App() {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    async function fetchFirebasePrompts() {
+      setIsPromptsListLoading(true);
+      try {
+        const q = query(collection(db, "prompts"), orderBy("created_at", "desc"));
+        const querySnapshot = await getDocs(q);
+        const list: any[] = [];
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          list.push({
+            id: doc.id,
+            title: data.title || "",
+            tagline: data.tagline || "",
+            raw_prompt: data.raw_prompt || "",
+            engine_category: data.engine_category || "",
+            classification: data.classification || "",
+            search_tags: data.search_tags || [],
+            image_url: data.image_url || ""
+          });
+        });
+        setPromptsList(list);
+      } catch (err) {
+        console.error("Error loading prompt catalog from Google Firebase:", err);
+      } finally {
+        setIsPromptsListLoading(false);
+      }
+    }
+    fetchFirebasePrompts();
+  }, []);
 
   useEffect(() => {
     fetchAllData();
@@ -807,32 +856,120 @@ export default function App() {
                     </button>
                   </div>
 
-                  {prompts.filter(p => p.published || adminToken).length === 0 ? (
+                  {isPromptsListLoading ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                      <PromptCardSkeleton />
+                      <PromptCardSkeleton />
+                      <PromptCardSkeleton />
+                    </div>
+                  ) : promptsList.length === 0 ? (
                     <div className="p-12 text-center rounded-2xl border border-dashed border-violet-500/10">
-                      <p className="text-gray-400 font-sans text-sm">No live prompts currently published.</p>
+                      <p className="text-gray-400 font-sans text-sm">No live prompts currently published to Firebase.</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                      {prompts
-                        .filter(p => p.published || adminToken)
-                        .sort((a, b) => {
-                          const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                          const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                          return tB - tA;
-                        })
-                        .slice(0, 12)
-                        .map((p) => (
-                          <PromptCard
-                            key={p.id}
-                            prompt={p}
-                            onClick={() => handleSelectPrompt(p)}
-                            onCopyDirect={handleCopyPromptDirect}
-                            onLikeDirect={handleLikePromptDirect}
-                            copiedId={copiedId}
-                            isComparing={compareList.some(comp => comp.id === p.id)}
-                            onToggleCompare={handleToggleCompare}
-                          />
-                        ))}
+                      {promptsList.map((prompt) => {
+                        const isCopied = copiedFirebaseId === prompt.id;
+                        return (
+                          <div
+                            key={prompt.id}
+                            id={`firebase-prompt-card-${prompt.id}`}
+                            className="group relative rounded-2xl bg-[#0F172A]/50 border border-violet-500/10 hover:border-violet-500/50 transition-all duration-300 ease-out overflow-hidden flex flex-col justify-between h-[450px] cursor-pointer hover:-translate-y-2 hover:scale-[1.01] hover:shadow-[0_25px_50px_-12px_rgba(139,92,246,0.35),_0_0_25px_rgba(6,182,212,0.2),_0_4px_10px_rgba(0,0,0,0.4)]"
+                          >
+                            {/* Copy Success Overlay */}
+                            <AnimatePresence>
+                              {isCopied && (
+                                <motion.div
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  exit={{ opacity: 0 }}
+                                  transition={{ duration: 0.2 }}
+                                  className="absolute inset-0 bg-[#0F172A]/85 backdrop-blur-xs z-40 flex flex-col items-center justify-center pointer-events-none"
+                                >
+                                  <motion.div
+                                    initial={{ scale: 0.4, opacity: 0, y: 15 }}
+                                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                                    exit={{ scale: 0.6, opacity: 0, y: -10 }}
+                                    transition={{ type: "spring", stiffness: 380, damping: 20 }}
+                                    className="bg-emerald-500/20 border border-emerald-500/30 rounded-full p-3.5 shadow-[0_0_25px_rgba(16,185,129,0.25)] mb-2"
+                                  >
+                                    <Check className="w-8 h-8 text-emerald-400" />
+                                  </motion.div>
+                                  <span className="text-emerald-300 font-mono text-xs font-bold tracking-widest uppercase">
+                                    Copied!
+                                  </span>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+
+                            {/* Main image / thumbnail container */}
+                            <div className="relative h-44 overflow-hidden bg-slate-950">
+                              <img
+                                src={prompt.image_url || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600"}
+                                alt={prompt.title}
+                                referrerPolicy="no-referrer"
+                                loading="lazy"
+                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-[#24324A] via-[#24324A]/20 to-transparent" />
+
+                              {/* Float tags & badges */}
+                              <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[90%]">
+                                <span className="px-2.5 py-1 rounded-md text-[10px] font-mono font-bold tracking-wide uppercase bg-gradient-to-r from-violet-700 to-indigo-500 text-violet-100 border border-violet-500/20 shadow-lg">
+                                  {prompt.engine_category || "General"}
+                                </span>
+                                <span className="px-2.5 py-1 rounded-md text-[10px] font-mono font-semibold bg-slate-900/95 text-cyan-300 border border-cyan-500/10">
+                                  {prompt.classification || "General"}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Content wrapper */}
+                            <div className="p-5 flex-1 flex flex-col justify-between">
+                              <div>
+                                <h3 className="font-sans font-bold text-white text-base leading-snug group-hover:text-cyan-300 transition-colors line-clamp-2 mb-2">
+                                  {prompt.title}
+                                </h3>
+                                <p className="font-sans text-xs text-[#94A3B8] leading-relaxed line-clamp-3 mb-4">
+                                  {prompt.tagline}
+                                </p>
+                              </div>
+
+                              {/* Tag row */}
+                              <div className="mb-4">
+                                <div className="flex flex-wrap gap-1">
+                                  {Array.isArray(prompt.search_tags) && prompt.search_tags.slice(0, 3).map((tag: string) => (
+                                    <span key={tag} className="text-[10px] font-mono text-gray-400 bg-slate-800/40 px-2 py-0.5 rounded border border-white/5">
+                                      #{tag}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Action controls footer */}
+                              <div className="pt-4 border-t border-violet-500/10 flex items-center justify-between">
+                                <span className="text-[10px] font-mono text-indigo-400 uppercase tracking-widest font-bold">
+                                  Cloud Database Card
+                                </span>
+                                <button
+                                  id={`quick-copy-fb-${prompt.id}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard.writeText(prompt.raw_prompt);
+                                    setCopiedFirebaseId(prompt.id);
+                                    triggerToast("copy", "Prompt copied to clipboard!", prompt.title, prompt.engine_category);
+                                    setTimeout(() => setCopiedFirebaseId(null), 1500);
+                                  }}
+                                  className="relative overflow-hidden p-2 rounded-lg text-xs font-mono font-medium transition-all duration-300 flex items-center justify-center gap-1 min-w-[78px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 hover:text-white border border-cyan-500/20"
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                  <span>Copy</span>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

@@ -316,16 +316,19 @@ export default function AdminPanel({
       try {
         setIsSubmitting(true); // Sets button text to "Writing Record..."
         
-        // Step A: Create explicit unique naming reference for storage
-        const storageRef = ref(storage, `prompts-assets/${Date.now()}_${imageFile.name}`);
+        // Step A: Capture the binary image file object from the state and append to FormData wrapper
+        const formData = new FormData();
+        formData.append("image", imageFile);
         
-        // Step B: Use uploadBytes and ensure it completely awaits resolution
-        const snapshot = await uploadBytes(storageRef, imageFile);
+        // Step B: Execute a standard JavaScript fetch POST request to upload the image directly to ImgBB
+        const imgbbResponse = await fetch("https://imgbb.com", {
+          method: "POST",
+          body: formData
+        });
+        const imgbbData = await imgbbResponse.json();
+        const resolvedImageURL = imgbbData.data.url;
         
-        // Step C: Securely fetch the public string URL of the uploaded asset
-        const downloadURL = await getDownloadURL(snapshot.ref);
-        
-        // Step D: Write fields straight to Firestore collection 'prompts'
+        // Step C: Write fields straight to Firestore collection 'prompts'
         await addDoc(collection(db, "prompts"), {
           title: promptTitleState.trim(),
           tagline: taglineState.trim(),
@@ -333,13 +336,13 @@ export default function AdminPanel({
           engine_category: targetPlatformState,
           classification: categoryClassificationState,
           search_tags: tagsState.split(',').map(t => t.trim()),
-          image_url: downloadURL, // Directly passes the resolved valid link string
+          image_url: resolvedImageURL, // Directly passes the resolved valid link string
           is_featured: featuredCheckboxState,
           is_published: publishCheckboxState,
           created_at: new Date().toISOString()
         });
 
-        alert("Prompt Published to Firebase Successfully!");
+        alert("Prompt Published Successfully via ImgBB & Firestore!");
         
         // Reset all inputs and files to empty states here
         setEditingPrompt(null);
