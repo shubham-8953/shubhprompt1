@@ -1,4 +1,22 @@
 import React, { useState, useRef, useEffect } from "react";
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, addDoc } from "firebase/firestore";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyABc84Y9DWkFqh3MqY3sgqk-rKOi7OSDKk",
+  authDomain: "shubhprompt-db.firebaseapp.com",
+  databaseURL: "https://shubhprompt-db-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "shubhprompt-db",
+  storageBucket: "shubhprompt-db.firebasestorage.app",
+  messagingSenderId: "751523654989",
+  appId: "1:751523654989:web:3e46315590d60f16399b04"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
 import { Prompt, Guide, WatchPrompt, AppSettings, AnalyticsSummary, SUPPORTED_PLATFORMS, DEFAULT_CATEGORIES } from "../types";
 import {
   Sliders,
@@ -80,6 +98,7 @@ export default function AdminPanel({
 
   // Forms state
   const [editingPrompt, setEditingPrompt] = useState<Partial<Prompt> | null>(null);
+  const [selectedFirebaseFile, setSelectedFirebaseFile] = useState<File | null>(null);
   
   // Sorting state for prompt admin view
   const [promptSortBy, setPromptSortBy] = useState<
@@ -221,6 +240,14 @@ export default function AdminPanel({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (targetField === "cover" && editingPrompt) {
+      setSelectedFirebaseFile(file);
+      setEditingPrompt({ ...editingPrompt, coverImage: file.name });
+      setUploadFeedback("Cover file selected: " + file.name);
+      setTimeout(() => setUploadFeedback(null), 3000);
+      return;
+    }
+
     setUploadFeedback("Analyzing file payload...");
     setIsUploading(true);
 
@@ -257,14 +284,54 @@ export default function AdminPanel({
   // Save changes to database
   const handleSavePromptClick = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingPrompt?.title || !editingPrompt?.fullPrompt || !editingPrompt?.platform) {
-      alert("Please provide at least a Title, Platform, and full algorithmic directions.");
+    if (!editingPrompt?.title?.trim() || !editingPrompt?.fullPrompt?.trim()) {
+      alert("Please provide at least a Title and full instructions.");
       return;
     }
 
     setIsSaving(true);
     setSaveSuccess(false);
 
+    // If it's a new prompt entry, publish directly to Google Firebase
+    if (!editingPrompt.id) {
+      try {
+        let imageUrl = editingPrompt.coverImage || "";
+
+        if (selectedFirebaseFile) {
+          // Step A: Cloud Storage Upload under folder 'prompts-assets/'
+          const storagePath = `prompts-assets/${Date.now()}_${selectedFirebaseFile.name}`;
+          const fileRef = ref(storage, storagePath);
+          const uploadResult = await uploadBytes(fileRef, selectedFirebaseFile);
+          
+          // Step B: Resolve secure permanent link
+          imageUrl = await getDownloadURL(uploadResult.ref);
+        } else if (!imageUrl) {
+          imageUrl = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600";
+        }
+
+        // Step C: Firestore Data Write to collection "prompts"
+        await addDoc(collection(db, "prompts"), {
+          title: editingPrompt.title.trim(),
+          raw_prompt: editingPrompt.fullPrompt.trim(),
+          engine_category: (editingPrompt.category || "General").trim(),
+          image_url: imageUrl
+        });
+
+        // Clear form fields, reset state, and raise alert
+        alert("Prompt Published to Firebase Successfully!");
+        setEditingPrompt(null);
+        setSelectedFirebaseFile(null);
+        setSaveSuccess(true);
+      } catch (err) {
+        console.error("Firebase publishing pipeline error:", err);
+        alert("Failed to publish prompt to Firebase. Error: " + (err instanceof Error ? err.message : String(err)));
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
+
+    // Traditional save logic for modifying an existing prompt
     try {
       let tagsArr: string[] = [];
       if (typeof editingPrompt.tags === "string") {
