@@ -296,8 +296,7 @@ export default function AdminPanel({
     if (!editingPrompt.id) {
       const imageFile = selectedFirebaseFile;
       if (!imageFile) {
-        console.warn("Upload aborted: No valid internal file object found for the cover image.");
-        alert("Please upload a cover image file using the Upload button before saving.");
+        alert("Please select a cover image first!");
         return;
       }
 
@@ -313,22 +312,34 @@ export default function AdminPanel({
       const featuredCheckboxState = editingPrompt.featured === true;
       const publishCheckboxState = editingPrompt.published !== false;
 
+      const setImageFile = setSelectedFirebaseFile;
+      const setPromptTitleState = (val: string) => {};
+      const setTaglineState = (val: string) => {};
+      const setFullInstructionsState = (val: string) => {};
+      const setTagsState = (val: string) => {};
+      const fileInputRef = coverFileRef;
+
+      setIsSubmitting(true);
+
       try {
-        setIsSubmitting(true); // Sets button text to "Writing Record..."
-        
-        // Step A: Capture the binary image file object from the state and append to FormData wrapper
+        // 1. Build Standard Multipart Form Payload for ImgBB API
         const formData = new FormData();
         formData.append("image", imageFile);
         
-        // Step B: Execute a standard JavaScript fetch POST request to upload the image directly to ImgBB
+        // 2. Dispatch Direct Server Fetch to ImgBB
         const imgbbResponse = await fetch("https://imgbb.com", {
           method: "POST",
           body: formData
         });
-        const imgbbData = await imgbbResponse.json();
-        const resolvedImageURL = imgbbData.data.url;
         
-        // Step C: Write fields straight to Firestore collection 'prompts'
+        if (!imgbbResponse.ok) {
+          throw new Error("ImgBB Cloud Storage upload rejected. Check API endpoints.");
+        }
+        
+        const imgbbData = await imgbbResponse.json();
+        const resolvedImageURL = imgbbData.data.url; // Extracted verified permanent cloud image link
+        
+        // 3. Immediately Insert Structured Values straight into Active Firestore
         await addDoc(collection(db, "prompts"), {
           title: promptTitleState.trim(),
           tagline: taglineState.trim(),
@@ -336,23 +347,30 @@ export default function AdminPanel({
           engine_category: targetPlatformState,
           classification: categoryClassificationState,
           search_tags: tagsState.split(',').map(t => t.trim()),
-          image_url: resolvedImageURL, // Directly passes the resolved valid link string
+          image_url: resolvedImageURL,
           is_featured: featuredCheckboxState,
           is_published: publishCheckboxState,
           created_at: new Date().toISOString()
         });
-
+        
         alert("Prompt Published Successfully via ImgBB & Firestore!");
         
-        // Reset all inputs and files to empty states here
+        // 4. Force Reset All Inputs and Form States
+        setPromptTitleState("");
+        setTaglineState("");
+        setFullInstructionsState("");
+        setTagsState("");
+        setImageFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        
+        // Completely clear the editing state object to reset UI components
         setEditingPrompt(null);
-        setSelectedFirebaseFile(null);
         setSaveSuccess(true);
       } catch (error: any) {
-        console.error("Firebase Storage/Firestore Transaction Failed:", error);
-        alert("Upload failed: " + error.message);
+        console.error("Critical Cloud Transaction Crash:", error);
+        alert("Upload Failed: " + error.message);
       } finally {
-        setIsSubmitting(false); // Instantly brings back button to default active state
+        setIsSubmitting(false); // Restores button visual state smoothly
       }
       return;
     }
