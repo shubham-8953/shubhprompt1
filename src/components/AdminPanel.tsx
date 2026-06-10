@@ -294,39 +294,62 @@ export default function AdminPanel({
 
     // If it's a new prompt entry, publish directly to Google Firebase
     if (!editingPrompt.id) {
+      const imageFile = selectedFirebaseFile;
+      if (!imageFile) {
+        console.warn("Upload aborted: No valid internal file object found for the cover image.");
+        alert("Please upload a cover image file using the Upload button before saving.");
+        return;
+      }
+
+      const setIsSubmitting = setIsSaving; // Aliased to drive the button state dynamically on the UI
+      const promptTitleState = editingPrompt.title || "";
+      const taglineState = editingPrompt.description || "";
+      const fullInstructionsState = editingPrompt.fullPrompt || "";
+      const targetPlatformState = editingPrompt.platform || SUPPORTED_PLATFORMS[0];
+      const categoryClassificationState = editingPrompt.category || DEFAULT_CATEGORIES[0];
+      const tagsState = typeof editingPrompt.tags === "string"
+        ? editingPrompt.tags
+        : (Array.isArray(editingPrompt.tags) ? editingPrompt.tags.join(", ") : "");
+      const featuredCheckboxState = editingPrompt.featured === true;
+      const publishCheckboxState = editingPrompt.published !== false;
+
       try {
-        let imageUrl = editingPrompt.coverImage || "";
-
-        if (selectedFirebaseFile) {
-          // Step A: Cloud Storage Upload under folder 'prompts-assets/'
-          const storagePath = `prompts-assets/${Date.now()}_${selectedFirebaseFile.name}`;
-          const fileRef = ref(storage, storagePath);
-          const uploadResult = await uploadBytes(fileRef, selectedFirebaseFile);
-          
-          // Step B: Resolve secure permanent link
-          imageUrl = await getDownloadURL(uploadResult.ref);
-        } else if (!imageUrl) {
-          imageUrl = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600";
-        }
-
-        // Step C: Firestore Data Write to collection "prompts"
+        setIsSubmitting(true); // Sets button text to "Writing Record..."
+        
+        // Step A: Create explicit unique naming reference for storage
+        const storageRef = ref(storage, `prompts-assets/${Date.now()}_${imageFile.name}`);
+        
+        // Step B: Use uploadBytes and ensure it completely awaits resolution
+        const snapshot = await uploadBytes(storageRef, imageFile);
+        
+        // Step C: Securely fetch the public string URL of the uploaded asset
+        const downloadURL = await getDownloadURL(snapshot.ref);
+        
+        // Step D: Write fields straight to Firestore collection 'prompts'
         await addDoc(collection(db, "prompts"), {
-          title: editingPrompt.title.trim(),
-          raw_prompt: editingPrompt.fullPrompt.trim(),
-          engine_category: (editingPrompt.category || "General").trim(),
-          image_url: imageUrl
+          title: promptTitleState.trim(),
+          tagline: taglineState.trim(),
+          raw_prompt: fullInstructionsState.trim(),
+          engine_category: targetPlatformState,
+          classification: categoryClassificationState,
+          search_tags: tagsState.split(',').map(t => t.trim()),
+          image_url: downloadURL, // Directly passes the resolved valid link string
+          is_featured: featuredCheckboxState,
+          is_published: publishCheckboxState,
+          created_at: new Date().toISOString()
         });
 
-        // Clear form fields, reset state, and raise alert
         alert("Prompt Published to Firebase Successfully!");
+        
+        // Reset all inputs and files to empty states here
         setEditingPrompt(null);
         setSelectedFirebaseFile(null);
         setSaveSuccess(true);
-      } catch (err) {
-        console.error("Firebase publishing pipeline error:", err);
-        alert("Failed to publish prompt to Firebase. Error: " + (err instanceof Error ? err.message : String(err)));
+      } catch (error: any) {
+        console.error("Firebase Storage/Firestore Transaction Failed:", error);
+        alert("Upload failed: " + error.message);
       } finally {
-        setIsSaving(false);
+        setIsSubmitting(false); // Instantly brings back button to default active state
       }
       return;
     }
