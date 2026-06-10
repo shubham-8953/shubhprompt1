@@ -99,6 +99,20 @@ export default function AdminPanel({
   // Forms state
   const [editingPrompt, setEditingPrompt] = useState<Partial<Prompt> | null>(null);
   const [selectedFirebaseFile, setSelectedFirebaseFile] = useState<File | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [uploadStatus, setUploadStatus] = useState("Idle");
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const selected = e.target.files[0];
+      setImageFile(selected);
+      setSelectedFirebaseFile(selected);
+      setUploadStatus("✅ File Selected: " + selected.name);
+      if (editingPrompt) {
+        setEditingPrompt({ ...editingPrompt, coverImage: selected.name });
+      }
+    }
+  };
   
   // Sorting state for prompt admin view
   const [promptSortBy, setPromptSortBy] = useState<
@@ -294,13 +308,17 @@ export default function AdminPanel({
 
     // If it's a new prompt entry, publish directly to Google Firebase
     if (!editingPrompt.id) {
-      const imageFile = selectedFirebaseFile;
       if (!imageFile) {
+        setUploadStatus("❌ Error: No file selected in state! Re-select image.");
         alert("Please select a cover image first!");
+        setIsSaving(false);
         return;
       }
 
-      const setIsSubmitting = setIsSaving; // Aliased to drive the button state dynamically on the UI
+      setUploadStatus("⏳ Step 1: Uploading to ImgBB Cloud...");
+      setIsSaving(true);
+      setSaveSuccess(false);
+
       const promptTitleState = editingPrompt.title || "";
       const taglineState = editingPrompt.description || "";
       const fullInstructionsState = editingPrompt.fullPrompt || "";
@@ -312,65 +330,54 @@ export default function AdminPanel({
       const featuredCheckboxState = editingPrompt.featured === true;
       const publishCheckboxState = editingPrompt.published !== false;
 
-      const setImageFile = setSelectedFirebaseFile;
-      const setPromptTitleState = (val: string) => {};
-      const setTaglineState = (val: string) => {};
-      const setFullInstructionsState = (val: string) => {};
-      const setTagsState = (val: string) => {};
-      const fileInputRef = coverFileRef;
-
-      setIsSubmitting(true);
-
       try {
-        // 1. Build Standard Multipart Form Payload for ImgBB API
         const formData = new FormData();
         formData.append("image", imageFile);
-        
-        // 2. Dispatch Direct Server Fetch to ImgBB
-        const imgbbResponse = await fetch("https://imgbb.com", {
+
+        const response = await fetch("https://api.imgbb.com/1/upload?key=3ab7f3382637df85b5fbc582def29e52", {
           method: "POST",
           body: formData
         });
-        
-        if (!imgbbResponse.ok) {
-          throw new Error("ImgBB Cloud Storage upload rejected. Check API endpoints.");
+
+        const data = await response.json();
+        if (!data.success) {
+          throw new Error("ImgBB API Error: " + (data.error?.message || "Unknown"));
         }
         
-        const imgbbData = await imgbbResponse.json();
-        const resolvedImageURL = imgbbData.data.url; // Extracted verified permanent cloud image link
-        
-        // 3. Immediately Insert Structured Values straight into Active Firestore
+        const cloudUrl = data.data.url;
+        setUploadStatus("✅ Step 2: Image Uploaded! Saving to Database...");
+
         await addDoc(collection(db, "prompts"), {
           title: promptTitleState.trim(),
           tagline: taglineState.trim(),
           raw_prompt: fullInstructionsState.trim(),
           engine_category: targetPlatformState,
           classification: categoryClassificationState,
-          search_tags: tagsState.split(',').map(t => t.trim()),
-          image_url: resolvedImageURL,
+          search_tags: tagsState.split(',').map((t: string) => t.trim()),
+          image_url: cloudUrl,
           is_featured: featuredCheckboxState,
           is_published: publishCheckboxState,
           created_at: new Date().toISOString()
         });
-        
+
+        setUploadStatus("🎉 SUCCESS: Prompt is Live on Website!");
         alert("Prompt Published Successfully via ImgBB & Firestore!");
         
-        // 4. Force Reset All Inputs and Form States
-        setPromptTitleState("");
-        setTaglineState("");
-        setFullInstructionsState("");
-        setTagsState("");
+        // Reset states
         setImageFile(null);
-        if (fileInputRef.current) fileInputRef.current.value = "";
+        setSelectedFirebaseFile(null);
+        if (coverFileRef.current) {
+          coverFileRef.current.value = "";
+        }
         
-        // Completely clear the editing state object to reset UI components
         setEditingPrompt(null);
         setSaveSuccess(true);
-      } catch (error: any) {
-        console.error("Critical Cloud Transaction Crash:", error);
-        alert("Upload Failed: " + error.message);
+      } catch (err: any) {
+        console.error("Critical Cloud Transaction Crash:", err);
+        setUploadStatus("❌ FAILED: " + err.message);
+        alert("Upload Failed: " + err.message);
       } finally {
-        setIsSubmitting(false); // Restores button visual state smoothly
+        setIsSaving(false);
       }
       return;
     }
@@ -1064,7 +1071,7 @@ export default function AdminPanel({
                         <input
                           type="file"
                           ref={coverFileRef}
-                          onChange={(e) => triggerMediaUpload(e, "cover")}
+                          onChange={handleFileSelect}
                           className="hidden"
                           accept="image/*"
                         />
@@ -1152,6 +1159,8 @@ export default function AdminPanel({
                     {uploadFeedback}
                   </p>
                 )}
+
+                <p className="text-sm font-bold text-blue-600 mt-2">{uploadStatus}</p>
 
                 <div className="pt-4 border-t border-violet-500/15 flex items-center justify-end gap-3">
                   <button
