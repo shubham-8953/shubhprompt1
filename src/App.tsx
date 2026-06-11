@@ -599,6 +599,29 @@ export default function App() {
     }, 1800);
   };
 
+  // Dynamically extract top suggested tags based on available data
+  const suggestedTags = React.useMemo(() => {
+    const list = promptsList.length > 0 ? promptsList : prompts;
+    const counts: Record<string, number> = {};
+    list.forEach(p => {
+      const tags = p.tags || p.search_tags || [];
+      tags.forEach((t: string) => {
+        if (!t) return;
+        const cleanTag = t.trim().toLowerCase();
+        if (cleanTag) {
+          counts[cleanTag] = (counts[cleanTag] || 0) + 1;
+        }
+      });
+    });
+    // Sort by count descending and take top 6
+    const sorted = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([tag]) => {
+        return tag.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      });
+    return sorted.slice(0, 6);
+  }, [promptsList, prompts]);
+
   // Dynamic filter lists for prompts catalog rendering
   const filteredPrompts = promptsList.filter(p => {
     // Hide drafts from guests; let admin see drafts instantly
@@ -1032,15 +1055,37 @@ export default function App() {
           {/* Advanced Search & Filtering Drawer Toolbar */}
           <div className="p-5 rounded-2xl bg-[#0f172a]/40 border border-violet-500/10 flex flex-col lg:flex-row items-center gap-4 text-xs">
             {/* Search inputs */}
-            <div className="flex-1 w-full">
+            <div className="flex-1 w-full flex flex-col gap-2">
               <input
                 id="filter-search-box"
                 type="text"
                 placeholder="Filter catalog by name, prompt text, tags..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[#1E293B] rounded-xl border border-violet-500/20 px-4 py-2 text-white focus:outline-none focus:border-cyan-500 placeholder-gray-500"
+                className="w-full bg-[#1E293B] rounded-xl border border-violet-500/20 px-4 py-2.5 text-white focus:outline-none focus:border-cyan-500 placeholder-gray-500 transition-colors duration-200"
               />
+              {suggestedTags.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-gray-400 select-none px-1">
+                  <span className="font-mono text-gray-500 font-semibold uppercase tracking-wider">Suggested terms:</span>
+                  {suggestedTags.map(tag => (
+                    <button
+                      key={tag}
+                      onClick={() => setSearchQuery(tag)}
+                      className="px-2 py-0.5 rounded-md bg-[#1F2937]/50 hover:bg-violet-500/20 hover:text-cyan-400 text-xs text-gray-300 font-medium transition-all duration-200 cursor-pointer border border-violet-500/10 active:scale-95"
+                    >
+                      #{tag}
+                    </button>
+                  ))}
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="ml-auto text-pink-400 hover:text-pink-300 font-mono text-[9px] uppercase tracking-wider hover:underline cursor-pointer"
+                    >
+                      Clear Filter
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Dropdowns */}

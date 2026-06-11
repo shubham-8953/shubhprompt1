@@ -100,6 +100,30 @@ export default function AdminPanel({
 
   // Forms state
   const [editingPrompt, setEditingPrompt] = useState<Partial<Prompt> | null>(null);
+  const [tagsState, setTagsState] = useState("");
+
+  useEffect(() => {
+    if (editingPrompt) {
+      const currentTags = typeof editingPrompt.tags === "string"
+        ? editingPrompt.tags
+        : (Array.isArray(editingPrompt.tags) ? editingPrompt.tags.join(", ") : "");
+      if (currentTags !== tagsState) {
+        setTagsState(currentTags);
+      }
+    } else {
+      setTagsState("");
+    }
+  }, [editingPrompt]);
+
+  useEffect(() => {
+    if (editingPrompt) {
+      setEditingPrompt(prev => {
+        if (!prev) return null;
+        if (prev.tags === tagsState) return prev;
+        return { ...prev, tags: tagsState };
+      });
+    }
+  }, [tagsState]);
   const [selectedFirebaseFile, setSelectedFirebaseFile] = useState<File | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState("Idle");
@@ -1330,17 +1354,14 @@ export default function AdminPanel({
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-[11px] font-mono uppercase tracking-wider text-gray-400 mb-1.5 font-semibold">
-                        Search tags (separating words with commas)
-                      </label>
-                      <input
-                        id="prompt-form-tags"
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-semibold text-gray-300">Search tags (separating words with commas)</label>
+                      <input 
                         type="text"
-                        placeholder="architectural, hyper-realistic, raytraced"
-                        value={Array.isArray(editingPrompt.tags) ? editingPrompt.tags.join(", ") : ""}
-                        onChange={(e) => setEditingPrompt({ ...editingPrompt, tags: e.target.value })}
-                        className="w-full bg-[#0F172A] border border-violet-500/20 focus:border-cyan-500 rounded-xl px-4 py-2.5 text-xs text-white"
+                        placeholder="e.g., ghibli style, photo to anime, chatgpt prompt"
+                        value={tagsState}
+                        onChange={(e) => setTagsState(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-[#0F172A] border border-violet-500/20 focus:border-cyan-500 rounded-xl text-xs text-white"
                       />
                     </div>
 
