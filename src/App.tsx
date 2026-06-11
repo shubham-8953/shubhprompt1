@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, collection, getDocs, query, orderBy } from "firebase/firestore";
+import { getFirestore, collection, getDocs, query, orderBy, doc, deleteDoc, updateDoc, increment } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAO2iZB-WLyQDUPGm_eanBXCrncupD-GvQ",
@@ -26,7 +26,7 @@ import CompliancePages from "./components/CompliancePages";
 import AdSensePlaceholder from "./components/AdSensePlaceholder";
 import { Prompt, Guide, WatchPrompt, AppSettings, AnalyticsSummary, SUPPORTED_PLATFORMS, DEFAULT_CATEGORIES } from "./types";
 import { PromptCardSkeleton, GuideCardSkeleton, WatchPromptSkeleton } from "./components/SkeletonLoader";
-import { Sparkles, Copy, Star, SlidersHorizontal, ArrowUpDown, HelpCircle, X, Check, Heart, Mail, Github, Twitter, Info, Lock, FolderOpen, Film, Play, Video, Instagram, Youtube, Facebook } from "lucide-react";
+import { Sparkles, Copy, Star, SlidersHorizontal, ArrowUpDown, HelpCircle, X, Check, Heart, Mail, Github, Twitter, Info, Lock, FolderOpen, Film, Play, Video, Instagram, Youtube, Facebook, Eye, Share2, Trash2, ExternalLink, Columns } from "lucide-react";
 
 export default function App() {
   const [promptsList, setPromptsList] = useState<any[]>([]);
@@ -489,7 +489,7 @@ export default function App() {
   };
 
   // Interactive copying action controllers
-  const handleSelectPrompt = (prompt: Prompt) => {
+  const handleSelectPrompt = async (prompt: Prompt) => {
     setSelectedPrompt(prompt);
 
     // Sync URL path with current query/detail view state
@@ -498,10 +498,18 @@ export default function App() {
       window.history.pushState({ promptId: prompt.id }, "", newPath);
     }
 
+    try {
+      await updateDoc(doc(db, "prompts", prompt.id), { total_views: increment(1) });
+    } catch (err) {
+      console.error("Failed to increment views:", err);
+    }
+
+    // update state counter locally
+    setPrompts(prevPrompts => prevPrompts.map(p => p.id === prompt.id ? { ...p, views: (p.views || 0) + 1 } : p));
+    setPromptsList(prevList => prevList.map(p => p.id === prompt.id ? { ...p, views: (p.views || 0) + 1, total_views: (p.total_views || 0) + 1 } : p));
+
     if (!viewedPrompts.includes(prompt.id)) {
       setViewedPrompts(prev => [...prev, prompt.id]);
-      // update state counter locally
-      setPrompts(prevPrompts => prevPrompts.map(p => p.id === prompt.id ? { ...p, views: (p.views || 0) + 1 } : p));
       trackEvent("view", { promptId: prompt.id });
     }
   };
@@ -533,13 +541,24 @@ export default function App() {
     handleCopyPromptText(prompt.id, prompt.fullPrompt);
   };
 
-  const handleLikePromptText = (id: string) => {
+  const handleLikePromptText = async (id: string) => {
     if (likedPrompts.includes(id)) return;
     setLikedPrompts(prev => [...prev, id]);
+
+    if (!localStorage.getItem(`liked_${id}`)) {
+      try {
+        await updateDoc(doc(db, "prompts", id), { total_likes: increment(1) });
+        localStorage.setItem(`liked_${id}`, "true");
+      } catch (err) {
+        console.error("Failed to increment likes:", err);
+      }
+    }
+
     // update state counter immediately
     setPrompts(prevPrompts => prevPrompts.map(p => p.id === id ? { ...p, likes: (p.likes || 0) + 1 } : p));
+    setPromptsList(prevList => prevList.map(p => p.id === id ? { ...p, likes: (p.likes || 0) + 1, total_likes: (p.total_likes || 0) + 1 } : p));
     if (selectedPrompt && selectedPrompt.id === id) {
-      setSelectedPrompt(prevSelected => prevSelected ? { ...prevSelected, likes: (prevSelected.likes || 0) + 1 } : null);
+      setSelectedPrompt(prevSelected => prevSelected ? { ...prevSelected, likes: (prevSelected.likes || 0) + 1, total_likes: (prevSelected.total_likes || 0) + 1 } : null);
     }
     trackEvent("like", { promptId: id });
   };

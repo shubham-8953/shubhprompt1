@@ -1,6 +1,6 @@
 import React from "react";
 import { Prompt } from "../types";
-import { Eye, Copy, Check, Heart, Share2, Sparkles, ExternalLink, Youtube } from "lucide-react";
+import { Eye, Copy, Check, Heart, Share2, Sparkles, ExternalLink, Youtube, Columns } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface PromptCardProps {
@@ -117,7 +117,7 @@ export default function PromptCard({
         {onToggleCompare && (
           <div
             id={`compare-toggle-container-${prompt.id}`}
-            className={`absolute top-3 right-3 z-30 flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-[10px] font-mono uppercase font-bold tracking-wider transition-all duration-200 cursor-pointer ${
+            className={`absolute top-3 right-3 z-30 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-mono uppercase font-bold tracking-wider transition-all duration-200 cursor-pointer ${
               isComparing
                 ? "bg-cyan-500 text-slate-950 border-cyan-400 font-extrabold shadow-[0_0_12px_rgba(6,182,212,0.4)]"
                 : "bg-slate-900/85 hover:bg-slate-950 text-gray-300 border-white/10"
@@ -127,13 +127,7 @@ export default function PromptCard({
               onToggleCompare(prompt);
             }}
           >
-            <input
-              type="checkbox"
-              id={`compare-checkbox-${prompt.id}`}
-              checked={isComparing}
-              onChange={() => {}} // Controlled by outer div onClick
-              className="w-3.5 h-3.5 rounded text-cyan-600 focus:ring-cyan-500/30 border-white/20 cursor-pointer accent-cyan-500"
-            />
+            <Columns className={`w-3 h-3 ${isComparing ? "text-slate-950" : "text-cyan-400"}`} />
             <span className="select-none">Compare</span>
           </div>
         )}

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, collection, addDoc, getDocs, query, orderBy } from "firebase/firestore";
+import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, increment, query, orderBy } from "firebase/firestore";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, PieChart as RechartsPieChart, Pie } from "recharts";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAO2iZB-WLyQDUPGm_eanBXCrncupD-GvQ",
@@ -46,7 +47,8 @@ import {
   CopyCheck,
   Tag,
   EyeOff,
-  Files
+  Files,
+  Columns
 } from "lucide-react";
 
 interface AdminPanelProps {
@@ -155,6 +157,18 @@ export default function AdminPanel({
   useEffect(() => {
     fetchAdminPrompts();
   }, []);
+
+  const handleDeletePrompt = async (id: string) => {
+    if (!window.confirm("Delete this prompt permanently?")) return;
+    try {
+      await deleteDoc(doc(db, "prompts", id));
+      setPromptsList(prev => prev.filter(item => item.id !== id));
+      setPromptsState(prev => prev.filter(item => item.id !== id));
+      alert("Prompt Deleted Successfully!");
+    } catch (err: any) {
+      alert("Delete Error: " + err.message);
+    }
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -616,13 +630,30 @@ export default function AdminPanel({
   };
 
   // Helper metrics calculations
-  const totalViews = activePromoList.reduce((sum, p) => sum + (p.views || 0), 0);
+  const totalPrompts = promptsList.length;
+  const totalViews = promptsList.reduce((sum, item) => sum + (Number(item.total_views) || 0), 0);
+  const totalLikes = promptsList.reduce((sum, item) => sum + (Number(item.total_likes) || 0), 0);
   const totalCopies = activePromoList.reduce((sum, p) => sum + (p.copyCount || 0), 0);
-  const totalLikes = activePromoList.reduce((sum, p) => sum + (p.likes || 0), 0);
   
   // Real active dynamic database counters
-  const totalCombinedImpressions = promptsList.reduce((sum, p) => sum + (p.total_views || 0), 0);
-  const totalAccumulatedLikes = promptsList.reduce((sum, p) => sum + (p.total_likes || 0), 0);
+  const totalCombinedImpressions = totalViews;
+  const totalAccumulatedLikes = totalLikes;
+
+  // Group prompts by category to get count for Category Distribution chart
+  const categoryData = React.useMemo(() => {
+    const list = promptsList.length > 0 ? promptsList : prompts;
+    const counts: Record<string, number> = {};
+    
+    list.forEach((p) => {
+      const cat = p.category || p.classification || "Uncategorized";
+      counts[cat] = (counts[cat] || 0) + 1;
+    });
+
+    return Object.keys(counts).map((key) => ({
+      name: key,
+      count: counts[key],
+    })).sort((a, b) => b.count - a.count);
+  }, [promptsList, prompts]);
 
   // Guard login check
   if (!token && !isAuthenticated) {
@@ -851,6 +882,95 @@ export default function AdminPanel({
             </div>
           </div>
 
+          {/* Category Distribution Chart section */}
+          <div className="p-6 rounded-3xl bg-[#0F172A]/85 border border-violet-500/25 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-3 bg-cyan-500/10 text-[9px] font-mono text-cyan-400 uppercase tracking-widest rounded-bl-xl font-bold border-l border-b border-violet-500/10">
+              Engine Breakdown
+            </div>
+            <h3 className="text-xs font-mono uppercase tracking-widest text-[#94A3B8] font-bold mb-6 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#06B6D4]"></span>
+              Category Distribution Analysis
+            </h3>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Bar Chart mapping prompt counts per Category */}
+              <div className="p-5 rounded-2xl bg-slate-900/40 border border-violet-500/15">
+                <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wider block mb-4">Prompt Count by Engine Category</span>
+                <div className="h-64 sm:h-80 w-full text-[10px] font-mono">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={categoryData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
+                      <XAxis dataKey="name" stroke="#94A3B8" angle={-15} textAnchor="end" interval={0} height={40} />
+                      <YAxis stroke="#94A3B8" allowDecimals={false} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: "#0F172A", borderColor: "rgba(124, 58, 237, 0.3)", borderRadius: "12px" }}
+                        labelStyle={{ fontWeight: "bold", color: "#F8FAFC" }}
+                        itemStyle={{ color: "#38BDF8" }}
+                      />
+                      <Bar dataKey="count" fill="#8B5CF6" radius={[4, 4, 0, 0]}>
+                        {categoryData.map((entry, index) => {
+                          const colors = ["#8B5CF6", "#06B6D4", "#EC4899", "#F59E0B", "#10B981", "#3B82F6"];
+                          return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
+                        })}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Pie Chart breakdown section with active legend percentages */}
+              <div className="p-5 rounded-2xl bg-slate-900/40 border border-violet-500/15 flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="w-full md:w-1/2 h-64 text-[10px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPieChart>
+                      <Pie
+                        data={categoryData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={4}
+                        dataKey="count"
+                      >
+                        {categoryData.map((entry, index) => {
+                          const colors = ["#8B5CF6", "#06B6D4", "#EC4899", "#F59E0B", "#10B981", "#3B82F6"];
+                          return <Cell key={`cell-pie-${index}`} fill={colors[index % colors.length]} />;
+                        })}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{ backgroundColor: "#0F172A", borderColor: "rgba(124, 58, 237, 0.3)", borderRadius: "12px" }}
+                        itemStyle={{ color: "#F8FAFC" }}
+                      />
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div className="w-full md:w-1/2 space-y-3">
+                  <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wider block">Engine Distribution Share</span>
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-2 custom-scrollbar">
+                    {categoryData.map((entry, index) => {
+                      const colors = ["#8B5CF6", "#06B6D4", "#EC4899", "#F59E0B", "#10B981", "#3B82F6"];
+                      const percent = (entry.count / Math.max(promptsList.length, 1)) * 100;
+                      return (
+                        <div key={entry.name} className="flex items-center justify-between text-xs font-mono py-1 border-b border-white/5">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: colors[index % colors.length] }} />
+                            <span className="text-gray-300 truncate">{entry.name}</span>
+                          </div>
+                          <span className="text-white font-semibold shrink-0">
+                            {entry.count} ({percent.toFixed(1)}%)
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {categoryData.length === 0 && (
+                      <p className="text-[#94A3B8] italic text-xs font-sans">No prompt categories found.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Quick shortcut trigger cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="p-6 rounded-3xl bg-[#1E293B] border border-violet-500/10 space-y-4">
@@ -999,32 +1119,34 @@ export default function AdminPanel({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-violet-500/5 text-xs text-gray-300">
-                    {sortedPrompts.map((p) => (
-                      <tr key={p.id} className="hover:bg-violet-950/10 transition">
+                    {sortedPrompts.map((p) => {
+                      const prompt = p;
+                      return (
+                      <tr key={prompt.id} className="hover:bg-violet-950/10 transition">
                         <td className="p-4 shrink-0">
                           <img
-                            src={p.coverImage || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=100"}
+                            src={prompt.coverImage || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=100"}
                             alt=""
                             referrerPolicy="no-referrer"
                             className="w-12 h-8 rounded-lg object-cover bg-[#0F172A]"
                           />
                         </td>
                         <td className="p-4 max-w-sm">
-                          <span className="font-bold text-white block truncate">{p.title}</span>
-                          <span className="text-[10px] text-gray-400 font-mono italic">{p.platform} &bull; {p.id}</span>
+                          <span className="font-bold text-white block truncate">{prompt.title}</span>
+                          <span className="text-[10px] text-gray-400 font-mono italic">{prompt.platform} &bull; {prompt.id}</span>
                         </td>
                         <td className="p-4">
                           <span className="text-[10px] font-mono px-2 py-1 rounded bg-slate-900 text-gray-300">
-                            {p.category}
+                            {prompt.category}
                           </span>
                         </td>
                         <td className="p-4 font-mono">
-                          {p.published === false ? (
+                          {prompt.published === false ? (
                             <span className="text-rose-400 bg-rose-500/5 border border-rose-500/10 px-2 py-0.5 rounded text-[10px]">Unpublished Draft</span>
                           ) : (
                             <span className="text-emerald-400 bg-emerald-500/5 border border-emerald-500/10 px-2 py-0.5 rounded text-[10px]">Live Storefront</span>
                           )}
-                          {p.featured && (
+                          {prompt.featured && (
                             <span className="ml-1 px-1.5 py-0.5 text-amber-400 bg-amber-500/5 border border-amber-500/10 rounded text-[10px] inline-flex items-center gap-0.5 font-bold">
                               ★ Featured
                             </span>
@@ -1033,21 +1155,21 @@ export default function AdminPanel({
                         <td className="p-4 text-right">
                           <div className="inline-flex gap-2">
                             <button
-                              onClick={() => handleDuplicatePrompt(p)}
+                              onClick={() => handleDuplicatePrompt(prompt)}
                               className="p-1 px-2 rounded bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/25 text-cyan-400 transition"
                               title="Duplicate Prompt"
                             >
                               <Files className="w-3.5 h-3.5" />
                             </button>
                             <button
-                              onClick={() => setEditingPrompt(p)}
+                              onClick={() => setEditingPrompt(prompt)}
                               className="p-1 px-2 rounded bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 text-amber-400 transition"
                               title="Edit Prompt"
                             >
                               <Edit className="w-3.5 h-3.5" />
                             </button>
                             <button
-                              onClick={() => setDeleteConfirm({ type: "prompt", id: p.id, title: p.title || "Untitled" })}
+                              onClick={() => handleDeletePrompt(prompt.id)}
                               className="p-1 px-2 rounded bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/25 text-rose-400 transition"
                               title="Delete Prompt"
                             >
@@ -1056,7 +1178,8 @@ export default function AdminPanel({
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
