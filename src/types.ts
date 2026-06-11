@@ -17,6 +17,18 @@ export interface Prompt {
   copyCount: number;
   published: boolean;
   featured?: boolean;
+  
+  // Dynamic Firestore schema fields
+  tagline?: string;
+  raw_prompt?: string;
+  engine_category?: string;
+  classification?: string;
+  search_tags?: string[];
+  image_url?: string;
+  video_link?: string;
+  total_views?: number;
+  total_likes?: number;
+  total_shares?: number;
 }
 
 export interface Guide {

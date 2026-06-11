@@ -11,6 +11,9 @@ interface PromptDetailsModalProps {
   onLikeDirect: (id: string) => void;
   onShareDirect?: (id: string) => void;
   copiedId: string | null;
+  onToggleCompare?: (prompt: Prompt) => void;
+  compareList?: Prompt[];
+  onOpenCompare?: () => void;
 }
 
 // 200+ Word Editorial Content Generator tailored to satisfy Google AdSense Compliance guidelines
@@ -100,7 +103,10 @@ export default function PromptDetailsModal({
   onCopyDirect,
   onLikeDirect,
   onShareDirect,
-  copiedId
+  copiedId,
+  onToggleCompare,
+  compareList,
+  onOpenCompare
 }: PromptDetailsModalProps) {
   const [isPlayingVideo, setIsPlayingVideo] = useState(false);
   const [shareFeedback, setShareFeedback] = useState(false);
@@ -408,8 +414,38 @@ export default function PromptDetailsModal({
                   className="w-full py-3 px-4 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 font-sans text-xs font-semibold flex items-center justify-center gap-2 transition duration-300 cursor-pointer"
                 >
                   <Heart className="w-4 h-4 text-rose-500" />
-                  <span>Like Prompt ({prompt.likes})</span>
+                  <span>Like Prompt ({prompt.total_likes || prompt.likes || 0})</span>
                 </button>
+
+                {/* How to Use Shubh Prompt tutorial button */}
+                <a
+                  href={prompt.video_link || prompt.videoDemo || "https://youtube.com"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-sans text-xs font-semibold flex items-center justify-center gap-2 transition duration-300 shadow-md cursor-pointer text-center select-none"
+                >
+                  <Play className="fill-amber-400 text-amber-400 w-3.5 h-3.5 shrink-0 animate-pulse" />
+                  <span>How to Use Shubh Prompt</span>
+                </a>
+
+                {/* Compare Layout Engine side-by-side component toggle button */}
+                {onToggleCompare && (
+                  <button
+                    onClick={() => onToggleCompare(prompt)}
+                    className={`w-full py-3 px-4 rounded-xl font-sans text-xs font-semibold flex items-center justify-center gap-2 border transition-all duration-300 cursor-pointer ${
+                      compareList?.some(p => p.id === prompt.id)
+                        ? "bg-cyan-500 text-slate-950 border-cyan-400 font-bold shadow-[0_0_15px_rgba(6,182,212,0.4)]"
+                        : "bg-slate-900/65 hover:bg-slate-900 text-cyan-300 hover:text-white border border-cyan-500/15 hover:border-cyan-500/30"
+                    }`}
+                  >
+                    <Layers className="w-4 h-4" />
+                    <span>
+                      {compareList?.some(p => p.id === prompt.id)
+                        ? "In Comparison (Remove)"
+                        : "Compare Layout Engine"}
+                    </span>
+                  </button>
+                )}
 
                 {/* Deep platform link trigger */}
                 {platformsToRender.map((pName) => {
@@ -477,23 +513,36 @@ export default function PromptDetailsModal({
                 </div>
               </div>
 
-              {/* Metrics audit */}
-              <div className="p-5 rounded-2xl bg-slate-900/20 border border-white/5 text-xs font-mono text-gray-400 space-y-3.5">
-                <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider block border-b border-white/5 pb-1.5">Traffic Metrics</span>
-                <div className="flex items-center justify-between">
-                  <span>Views</span>
-                  <span className="text-white font-semibold flex items-center gap-1">
-                    <Eye className="w-3.5 h-3.5 text-violet-400" />
-                    {prompt.views}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Copies</span>
-                  <span className="text-white font-semibold">{prompt.copyCount}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Shares</span>
-                  <span className="text-white font-semibold">{prompt.shares}</span>
+              {/* Beautifully aligned interactive metrics panel */}
+              <div className="p-5 rounded-2xl bg-[#0F172A]/80 border border-violet-500/15 space-y-3 shadow-xl">
+                <span className="text-[10px] uppercase font-mono tracking-widest text-[#94A3B8] font-bold block border-b border-white/5 pb-2">
+                  Analytics & Dynamic Stats
+                </span>
+                
+                <div className="grid grid-cols-3 gap-2 pt-1 text-center">
+                  <div className="p-2.5 rounded-xl bg-slate-900/50 border border-white/5 flex flex-col items-center justify-center">
+                    <Eye className="w-4 h-4 text-violet-400 mb-1" />
+                    <span className="text-xs font-mono font-bold text-white block">
+                      {prompt.total_views || prompt.views || 0}
+                    </span>
+                    <span className="text-[9px] uppercase font-mono text-[#94A3B8] mt-0.5">Views</span>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-slate-900/50 border border-white/5 flex flex-col items-center justify-center">
+                    <Heart className="w-4 h-4 text-rose-500 mb-1" />
+                    <span className="text-xs font-mono font-bold text-white block">
+                      {prompt.total_likes || prompt.likes || 0}
+                    </span>
+                    <span className="text-[9px] uppercase font-mono text-[#94A3B8] mt-0.5">Likes</span>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-slate-900/50 border border-white/5 flex flex-col items-center justify-center flex-1">
+                    <Share2 className="w-4 h-4 text-cyan-400 mb-1" />
+                    <span className="text-xs font-mono font-bold text-white block">
+                      {prompt.total_shares || prompt.shares || 0}
+                    </span>
+                    <span className="text-[9px] uppercase font-mono text-[#94A3B8] mt-0.5">Shares</span>
+                  </div>
                 </div>
               </div>
 

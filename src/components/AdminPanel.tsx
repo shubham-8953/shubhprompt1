@@ -102,6 +102,31 @@ export default function AdminPanel({
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState("Idle");
 
+  // Dynamic live storage states
+  const [promptsList, setPromptsList] = useState<any[]>([]);
+
+  const fetchAdminPrompts = async () => {
+    try {
+      const q = query(collection(db, "prompts"), orderBy("created_at", "desc"));
+      const querySnapshot = await getDocs(q);
+      const list: any[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        list.push({
+          id: doc.id,
+          ...data
+        });
+      });
+      setPromptsList(list);
+    } catch (err) {
+      console.error("Error loading admin live prompt catalog:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchAdminPrompts();
+  }, []);
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selected = e.target.files[0];
@@ -329,6 +354,7 @@ export default function AdminPanel({
         : (Array.isArray(editingPrompt.tags) ? editingPrompt.tags.join(", ") : "");
       const featuredCheckboxState = editingPrompt.featured === true;
       const publishCheckboxState = editingPrompt.published !== false;
+      const youtubeVideoLinkState = editingPrompt.videoDemo || "";
 
       try {
         const formData = new FormData();
@@ -349,11 +375,23 @@ export default function AdminPanel({
 
         await addDoc(collection(db, "prompts"), {
           title: promptTitleState.trim(),
+          tagline: taglineState.trim(),
           raw_prompt: fullInstructionsState.trim(),
           engine_category: targetPlatformState,
+          classification: categoryClassificationState,
+          search_tags: tagsState.split(',').map(t => t.trim()).filter(t => t.length > 0),
           image_url: cloudUrl,
+          video_link: youtubeVideoLinkState || "https://youtube.com", // Redirect link placeholder
+          total_views: 0, // Initial active counter
+          total_likes: 0, // Initial active counter
+          total_shares: 0, // Initial active counter
+          is_featured: featuredCheckboxState,
+          is_published: publishCheckboxState,
           created_at: new Date().toISOString()
         });
+
+        // Trigger dynamic metrics update
+        await fetchAdminPrompts();
 
         setUploadStatus("🎉 SUCCESS: Prompt is Live on Website!");
         alert("Prompt Published Successfully!");
@@ -549,6 +587,10 @@ export default function AdminPanel({
   const totalViews = prompts.reduce((sum, p) => sum + (p.views || 0), 0);
   const totalCopies = prompts.reduce((sum, p) => sum + (p.copyCount || 0), 0);
   const totalLikes = prompts.reduce((sum, p) => sum + (p.likes || 0), 0);
+  
+  // Real active dynamic database counters
+  const totalCombinedImpressions = promptsList.reduce((sum, p) => sum + (p.total_views || 0), 0);
+  const totalAccumulatedLikes = promptsList.reduce((sum, p) => sum + (p.total_likes || 0), 0);
 
   // Guard login check
   if (!token && !isAuthenticated) {
@@ -725,6 +767,34 @@ export default function AdminPanel({
       {/* --- MODULE 1: INTERACTIVE UNIFIED HOME DASHBOARD --- */}
       {activeTab === "dashboard" && (
         <div className="space-y-8 animate-fadeIn">
+          {/* Live Firebase Analytics Panel */}
+          <div className="p-6 rounded-3xl bg-[#0F172A]/85 border border-violet-500/25 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-3 bg-violet-500/10 text-[9px] font-mono text-cyan-400 uppercase tracking-widest rounded-bl-xl font-bold border-l border-b border-violet-500/10">
+              Live Firestore Sync
+            </div>
+            <h3 className="text-xs font-mono uppercase tracking-widest text-[#94A3B8] font-bold mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+              Live Firebase Operational Analytics
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <div className="p-5 rounded-2xl bg-slate-900/40 border border-violet-500/15 hover:border-cyan-500/30 transition-all duration-300">
+                <span className="text-[10px] font-mono text-[#94A3B8] uppercase block">Total Active Prompts</span>
+                <span className="text-3xl font-extrabold text-[#F8FAFC] block mt-1.5">{promptsList.length}</span>
+                <span className="text-[10px] font-mono text-cyan-400 block mt-2">Drawn from live prompts schema</span>
+              </div>
+              <div className="p-5 rounded-2xl bg-slate-900/40 border border-violet-500/15 hover:border-violet-500/30 transition-all duration-300">
+                <span className="text-[10px] font-mono text-[#94A3B8] uppercase block">Total Combined Impressions/Views</span>
+                <span className="text-3xl font-extrabold text-[#F8FAFC] block mt-1.5">{totalCombinedImpressions.toLocaleString()}</span>
+                <span className="text-[10px] font-mono text-violet-400 block mt-2">Sum of all prompt.total_views</span>
+              </div>
+              <div className="p-5 rounded-2xl bg-slate-900/40 border border-violet-500/15 hover:border-pink-500/30 transition-all duration-300">
+                <span className="text-[10px] font-mono text-[#94A3B8] uppercase block">Total Accumulated Likes</span>
+                <span className="text-3xl font-extrabold text-[#F8FAFC] block mt-1.5">{totalAccumulatedLikes.toLocaleString()}</span>
+                <span className="text-[10px] font-mono text-pink-400 block mt-2">Sum of all prompt.total_likes</span>
+              </div>
+            </div>
+          </div>
+
           {/* Quick Info Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
             <div className="p-6 rounded-2xl bg-[#1F2A44] border border-violet-500/10">

@@ -175,15 +175,36 @@ export default function App() {
         const list: any[] = [];
         querySnapshot.forEach((doc) => {
           const data = doc.data();
+          const taglineFallback = data.tagline || (data.raw_prompt ? (data.raw_prompt.substring(0, 110) + "...") : "Industrial-grade prompt asset.");
+          const imageUrlFallback = data.image_url || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600";
           list.push({
             id: doc.id,
             title: data.title || "Untitled Prompt",
-            tagline: data.tagline || (data.raw_prompt ? (data.raw_prompt.substring(0, 110) + "...") : "Industrial-grade prompt asset."),
+            tagline: taglineFallback,
             raw_prompt: data.raw_prompt || "",
             engine_category: data.engine_category || "General",
             classification: data.classification || "AI Prompt",
             search_tags: data.search_tags || ["AI", "Creative"],
-            image_url: data.image_url || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600"
+            image_url: imageUrlFallback,
+            video_link: data.video_link || "https://youtube.com",
+            total_views: data.total_views || 0,
+            total_likes: data.total_likes || 0,
+            total_shares: data.total_shares || 0,
+            
+            // Map standard Prompt fields to ensure downstream components operate perfectly
+            description: taglineFallback,
+            fullPrompt: data.raw_prompt || "",
+            category: data.classification || "AI Prompt",
+            platform: data.engine_category || "General",
+            tags: data.search_tags || ["AI", "Creative"],
+            coverImage: imageUrlFallback,
+            videoDemo: data.video_link || "https://youtube.com",
+            views: data.total_views || 0,
+            likes: data.total_likes || 0,
+            shares: data.total_shares || 0,
+            copyCount: data.total_copies || 0,
+            published: data.is_published !== false,
+            featured: data.is_featured === true
           });
         });
         setPromptsList(list);
@@ -873,6 +894,7 @@ export default function App() {
                           <div
                             key={prompt.id}
                             id={`firebase-prompt-card-${prompt.id}`}
+                            onClick={() => handleSelectPrompt(prompt)}
                             className="group relative rounded-2xl bg-[#0F172A]/50 border border-violet-500/10 hover:border-violet-500/50 transition-all duration-300 ease-out overflow-hidden flex flex-col justify-between h-[450px] cursor-pointer hover:-translate-y-2 hover:scale-[1.01] hover:shadow-[0_25px_50px_-12px_rgba(139,92,246,0.35),_0_0_25px_rgba(6,182,212,0.2),_0_4px_10px_rgba(0,0,0,0.4)]"
                           >
                             {/* Copy Success Overlay */}
@@ -1488,6 +1510,9 @@ export default function App() {
           onLikeDirect={handleLikePromptText}
           onShareDirect={handleSharePromptText}
           copiedId={copiedId}
+          onToggleCompare={handleToggleCompare}
+          compareList={compareList}
+          onOpenCompare={() => setShowCompareModal(true)}
         />
       )}
 
