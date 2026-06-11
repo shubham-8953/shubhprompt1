@@ -1,6 +1,6 @@
 import React from "react";
 import { Prompt } from "../types";
-import { Eye, Copy, Check, Heart, Share2, Sparkles, ExternalLink } from "lucide-react";
+import { Eye, Copy, Check, Heart, Share2, Sparkles, ExternalLink, Youtube } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface PromptCardProps {
@@ -179,29 +179,47 @@ export default function PromptCard({
         {/* Action controls footer */}
         <div className="pt-4 border-t border-violet-500/10 flex items-center justify-between">
           {/* Analytics displays */}
-          <div className="flex items-center gap-3 text-xs font-mono text-[#94A3B8]">
-            <div className="flex items-center gap-1" title={`${prompt.views} Views`}>
-              <Eye className="w-3.5 h-3.5 text-violet-400" />
+          <div className="flex items-center gap-2 text-[11px] font-mono text-[#94A3B8]">
+            <div className="flex items-center gap-0.5" title={`${prompt.views} Views`}>
+              <Eye className="w-3 h-3 text-violet-400" />
               <span>{prompt.views >= 1000 ? `${(prompt.views / 1000).toFixed(1)}k` : prompt.views}</span>
             </div>
 
-            <div className="flex items-center gap-1" title={`${prompt.copyCount} Copies`}>
-              <Copy className="w-3.5 h-3.5 text-cyan-400" />
+            <div className="flex items-center gap-0.5" title={`${prompt.copyCount} Copies`}>
+              <Copy className="w-3 h-3 text-cyan-400" />
               <span>{prompt.copyCount >= 1000 ? `${(prompt.copyCount / 1000).toFixed(1)}k` : prompt.copyCount}</span>
             </div>
 
             <div
               onClick={(e) => onLikeDirect(e, prompt.id)}
-              className="flex items-center gap-1 cursor-pointer hover:text-rose-400 transition-colors group/like"
+              className="flex items-center gap-0.5 cursor-pointer hover:text-rose-400 transition-colors group/like"
               title="Like Prompt"
             >
-              <Heart className="w-3.5 h-3.5 text-gray-500 group-hover/like:text-rose-500 group-hover/like:scale-110 transition-all" />
+              <Heart className="w-3 h-3 text-gray-500 group-hover/like:text-rose-500 group-hover/like:scale-110 transition-all" />
               <span>{prompt.likes}</span>
+            </div>
+
+            <div className="flex items-center gap-0.5" title={`${prompt.shares || 0} Shares`}>
+              <Share2 className="w-3 h-3 text-blue-400" />
+              <span>{(prompt.shares || 0) >= 1000 ? `${((prompt.shares || 0) / 1000).toFixed(1)}k` : (prompt.shares || 0)}</span>
             </div>
           </div>
 
           {/* Action trigger btn */}
           <div className="flex items-center gap-1.5">
+            {(prompt.videoDemo || prompt.video_link) && (
+              <a
+                href={prompt.videoDemo || prompt.video_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="p-2 rounded-lg bg-red-650/10 hover:bg-red-600/25 text-red-500 hover:text-white border border-red-500/10 hover:border-red-500/30 transition-all cursor-pointer flex items-center justify-center"
+                title="Watch Video Demo on YouTube"
+              >
+                <Youtube className="w-3.5 h-3.5" />
+              </a>
+            )}
+
             <button
               id={`quick-copy-btn-${prompt.id}`}
               onClick={(e) => onCopyDirect(e, prompt)}

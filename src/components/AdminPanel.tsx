@@ -104,6 +104,7 @@ export default function AdminPanel({
 
   // Dynamic live storage states
   const [promptsList, setPromptsList] = useState<any[]>([]);
+  const [promptsState, setPromptsState] = useState<Prompt[]>([]);
 
   const fetchAdminPrompts = async () => {
     try {
@@ -112,12 +113,40 @@ export default function AdminPanel({
       const list: any[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
+        const taglineFallback = data.tagline || (data.raw_prompt ? (data.raw_prompt.substring(0, 110) + "...") : "Industrial-grade prompt asset.");
+        const imageUrlFallback = data.image_url || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600";
         list.push({
           id: doc.id,
-          ...data
+          title: data.title || "Untitled Prompt",
+          tagline: taglineFallback,
+          raw_prompt: data.raw_prompt || "",
+          engine_category: data.engine_category || "General",
+          classification: data.classification || "AI Prompt",
+          search_tags: data.search_tags || ["AI", "Creative"],
+          image_url: imageUrlFallback,
+          video_link: data.video_link || "https://youtube.com",
+          total_views: data.total_views || 0,
+          total_likes: data.total_likes || 0,
+          total_shares: data.total_shares || 0,
+          
+          // Map standard Prompt fields to ensure downstream components operate perfectly
+          description: taglineFallback,
+          fullPrompt: data.raw_prompt || "",
+          category: data.classification || "AI Prompt",
+          platform: data.engine_category || "General",
+          tags: data.search_tags || ["AI", "Creative"],
+          coverImage: imageUrlFallback,
+          videoDemo: data.video_link || "https://youtube.com",
+          views: data.total_views || 0,
+          likes: data.total_likes || 0,
+          shares: data.total_shares || 0,
+          copyCount: data.total_copies || 0,
+          published: data.is_published !== false,
+          featured: data.is_featured === true
         });
       });
       setPromptsList(list);
+      setPromptsState(list);
     } catch (err) {
       console.error("Error loading admin live prompt catalog:", err);
     }
@@ -144,8 +173,11 @@ export default function AdminPanel({
     "createdAt-desc" | "createdAt-asc" | "popularity-desc" | "popularity-asc" | "status-published" | "status-draft"
   >("createdAt-desc");
 
+  // Active database list fallback to prop if not loaded in state
+  const activePromoList = promptsState.length > 0 ? promptsState : prompts;
+
   // Derived sorted prompts strictly scoped inside the admin catalog view
-  const sortedPrompts = [...prompts].sort((a, b) => {
+  const sortedPrompts = [...activePromoList].sort((a, b) => {
     switch (promptSortBy) {
       case "createdAt-desc": {
         const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -584,9 +616,9 @@ export default function AdminPanel({
   };
 
   // Helper metrics calculations
-  const totalViews = prompts.reduce((sum, p) => sum + (p.views || 0), 0);
-  const totalCopies = prompts.reduce((sum, p) => sum + (p.copyCount || 0), 0);
-  const totalLikes = prompts.reduce((sum, p) => sum + (p.likes || 0), 0);
+  const totalViews = activePromoList.reduce((sum, p) => sum + (p.views || 0), 0);
+  const totalCopies = activePromoList.reduce((sum, p) => sum + (p.copyCount || 0), 0);
+  const totalLikes = activePromoList.reduce((sum, p) => sum + (p.likes || 0), 0);
   
   // Real active dynamic database counters
   const totalCombinedImpressions = promptsList.reduce((sum, p) => sum + (p.total_views || 0), 0);
@@ -799,7 +831,7 @@ export default function AdminPanel({
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
             <div className="p-6 rounded-2xl bg-[#1F2A44] border border-violet-500/10">
               <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wider block">Prompt Catalog Size</span>
-              <span className="text-3xl font-extrabold text-white block mt-1">{prompts.length}</span>
+              <span className="text-3xl font-extrabold text-white block mt-1">{activePromoList.length}</span>
               <span className="text-[10px] font-mono text-emerald-400 block mt-2">Active prompts ready</span>
             </div>
             <div className="p-6 rounded-2xl bg-[#1F2A44] border border-violet-500/10">
@@ -882,7 +914,7 @@ export default function AdminPanel({
             <div className="p-6 rounded-3xl bg-[#1E293B] border border-violet-500/10 space-y-4">
               <h3 className="font-bold text-white text-base font-sans">Recent Catalog Actions</h3>
               <div className="space-y-3 font-mono text-xs text-gray-400">
-                {prompts.slice(0, 3).map((p) => (
+                {activePromoList.slice(0, 3).map((p) => (
                   <div key={p.id} className="flex justify-between items-center py-2 border-b border-violet-500/5">
                     <span className="text-white truncate max-w-[60%]">{p.title}</span>
                     <span className="text-[10px] bg-[#1F2A44] text-cyan-300 px-2 py-0.5 rounded">
@@ -890,7 +922,7 @@ export default function AdminPanel({
                     </span>
                   </div>
                 ))}
-                {prompts.length === 0 && <p className="text-gray-500">No prompt entries yet.</p>}
+                {activePromoList.length === 0 && <p className="text-gray-500">No prompt entries yet.</p>}
               </div>
             </div>
           </div>
@@ -910,7 +942,7 @@ export default function AdminPanel({
                     Active Prompt Catalog
                   </h3>
                   <p className="text-[11px] text-gray-400 font-sans">
-                    Showing {prompts.length} entries &bull; Sorted locally in workspace
+                    Showing {activePromoList.length} entries &bull; Sorted locally in workspace
                   </p>
                 </div>
                 
@@ -1777,8 +1809,8 @@ export default function AdminPanel({
               </h4>
               <div className="space-y-2 font-sans text-xs">
                 {DEFAULT_CATEGORIES.map((category) => {
-                  const count = prompts.filter((p) => p.category === category).length;
-                  const ratio = Math.round((count / Math.max(prompts.length, 1)) * 100);
+                  const count = activePromoList.filter((p) => p.category === category).length;
+                  const ratio = Math.round((count / Math.max(activePromoList.length, 1)) * 100);
                   return (
                     <div key={category} className="bg-[#0F172A] p-3 rounded-xl border border-violet-500/5 flex justify-between items-center">
                       <span className="text-white font-semibold">{category}</span>
@@ -1799,10 +1831,10 @@ export default function AdminPanel({
               </h4>
               <div className="p-4 rounded-xl bg-[#0F172A] border border-violet-500/5 min-h-[300px]">
                 <div className="flex flex-wrap gap-2">
-                  {Array.from(new Set(prompts.flatMap((p) => p.tags || [])))
-                    .filter((t) => t.trim().length > 0)
+                  {Array.from(new Set(activePromoList.flatMap((p) => (p.tags || []) as string[])))
+                    .filter((t): t is string => typeof t === "string" && t.trim().length > 0)
                     .map((tag) => {
-                      const frequency = prompts.filter((p) => p.tags?.includes(tag)).length;
+                      const frequency = activePromoList.filter((p) => p.tags?.includes(tag)).length;
                       return (
                         <span
                           key={tag}
@@ -1812,7 +1844,7 @@ export default function AdminPanel({
                         </span>
                       );
                     })}
-                  {prompts.flatMap((p) => p.tags || []).length === 0 && (
+                  {activePromoList.flatMap((p) => p.tags || []).length === 0 && (
                     <p className="text-gray-500 text-xs italic font-mono p-4">No active keywords tagged yet.</p>
                   )}
                 </div>
@@ -1855,12 +1887,12 @@ export default function AdminPanel({
                 Rating performance: Most Viewed Prompts
               </h3>
               <div className="space-y-4 font-sans text-xs">
-                {prompts
+                {activePromoList
                   .slice()
                   .sort((a, b) => b.views - a.views)
                   .slice(0, 4)
                   .map((p, idx) => {
-                    const maxVal = Math.max(...prompts.map((pm) => pm.views || 1));
+                    const maxVal = Math.max(...activePromoList.map((pm) => pm.views || 1));
                     const ratio = Math.ceil(((p.views || 0) / maxVal) * 100);
                     return (
                       <div key={p.id} className="space-y-2">
@@ -1891,12 +1923,12 @@ export default function AdminPanel({
                 Conversion performance: Most Copied Prompts
               </h3>
               <div className="space-y-4 font-sans text-xs">
-                {prompts
+                {activePromoList
                   .slice()
                   .sort((a, b) => b.copyCount - a.copyCount)
                   .slice(0, 4)
                   .map((p, idx) => {
-                    const maxVal = Math.max(...prompts.map((pm) => pm.copyCount || 1));
+                    const maxVal = Math.max(...activePromoList.map((pm) => pm.copyCount || 1));
                     const ratio = Math.ceil(((p.copyCount || 0) / maxVal) * 100);
                     return (
                       <div key={p.id} className="space-y-2">
