@@ -24,6 +24,7 @@ import AdminPanel from "./components/AdminPanel";
 import ToastNotification, { ToastItem } from "./components/ToastNotification";
 import CompliancePages from "./components/CompliancePages";
 import AdSensePlaceholder from "./components/AdSensePlaceholder";
+import { OriginalYoutubeLogo } from "./components/OriginalYoutubeLogo";
 import { Prompt, Guide, WatchPrompt, AppSettings, AnalyticsSummary, SUPPORTED_PLATFORMS, DEFAULT_CATEGORIES } from "./types";
 import { PromptCardSkeleton, GuideCardSkeleton, WatchPromptSkeleton } from "./components/SkeletonLoader";
 import { Sparkles, Copy, Star, SlidersHorizontal, ArrowUpDown, HelpCircle, X, Check, Heart, Mail, Github, Twitter, Info, Lock, FolderOpen, Film, Play, Video, Instagram, Youtube, Facebook, Eye, Share2, Trash2, ExternalLink, Columns } from "lucide-react";
@@ -52,7 +53,21 @@ export default function App() {
   // Modal active variables
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [likedPrompts, setLikedPrompts] = useState<string[]>([]);
+  const [likedPrompts, setLikedPrompts] = useState<string[]>(() => {
+    const liked: string[] = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("liked_")) {
+          const id = key.substring(6);
+          if (id) liked.push(id);
+        }
+      }
+    } catch (e) {
+      console.warn("Storage error", e);
+    }
+    return liked;
+  });
   const [copiedPrompts, setCopiedPrompts] = useState<string[]>([]);
   const [sharedPrompts, setSharedPrompts] = useState<string[]>([]);
   const [viewedPrompts, setViewedPrompts] = useState<string[]>([]);
@@ -542,7 +557,24 @@ export default function App() {
   };
 
   const handleLikePromptText = async (id: string) => {
-    if (likedPrompts.includes(id)) return;
+    if (likedPrompts.includes(id)) {
+      setLikedPrompts(prev => prev.filter(item => item !== id));
+      localStorage.removeItem(`liked_${id}`);
+      setPrompts(prevPrompts => prevPrompts.map(p => p.id === id ? { ...p, likes: Math.max(0, (p.likes || 1) - 1) } : p));
+      setPromptsList(prevList => prevList.map(p => p.id === id ? { ...p, likes: Math.max(0, (p.likes || 1) - 1), total_likes: Math.max(0, (p.total_likes || 1) - 1) } : p));
+      if (selectedPrompt && selectedPrompt.id === id) {
+        setSelectedPrompt(prevSelected => prevSelected ? { ...prevSelected, likes: Math.max(0, (prevSelected.likes || 1) - 1), total_likes: Math.max(0, (prevSelected.total_likes || 1) - 1) } : null);
+      }
+      try {
+        await updateDoc(doc(db, "prompts", id), { total_likes: increment(-1) });
+      } catch (err) {
+        console.warn("Could not load database document to decrement like:", err);
+      }
+      trackEvent("unlike", { promptId: id });
+      triggerToast("info", "Removed from your premium favorites list.", "Favorites Cleared");
+      return;
+    }
+
     setLikedPrompts(prev => [...prev, id]);
 
     if (!localStorage.getItem(`liked_${id}`)) {
@@ -561,6 +593,7 @@ export default function App() {
       setSelectedPrompt(prevSelected => prevSelected ? { ...prevSelected, likes: (prevSelected.likes || 0) + 1, total_likes: (prevSelected.total_likes || 0) + 1 } : null);
     }
     trackEvent("like", { promptId: id });
+    triggerToast("success", "Added to your premium favorites list!", "Prompts Favorited");
   };
 
   const handleLikePromptDirect = (e: React.MouseEvent, promptId: string) => {
@@ -666,6 +699,12 @@ export default function App() {
     const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
     return timeB - timeA;
   });
+
+  // Curated liked prompts list for Favorites tab
+  const favoritedPrompts = React.useMemo(() => {
+    const list = promptsList.length > 0 ? promptsList : prompts;
+    return list.filter(p => likedPrompts.includes(p.id));
+  }, [promptsList, prompts, likedPrompts]);
 
   // Unique categories list across active catalog
   const availableCategories = Array.from(new Set(prompts.filter(p => p.category).map(p => p.category)));
@@ -1270,91 +1309,139 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-24 space-y-12 animate-fadeIn">
           <div>
             <h1 className="text-3xl font-extrabold font-sans text-white tracking-tight flex items-center gap-2">
-              <Film className="w-7 h-7 text-amber-500 animate-bounce" />
-              How to Use ShubhPrompt (Watch)
+              <OriginalYoutubeLogo className="w-10 h-10 animate-pulse" />
+              How to Use ShubhPrompt
             </h1>
             <p className="text-xs text-[#94A3B8] font-sans mt-1">
-              Watch step-by-step custom instruction videos and interactive feature guides.
+              Unlock the core secrets and advanced blueprints of modern artificial intelligence engineering.
             </p>
           </div>
 
-          {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              <WatchPromptSkeleton />
-              <WatchPromptSkeleton />
-              <WatchPromptSkeleton />
+          <div className="p-8 md:p-12 rounded-3xl bg-[#0f172a]/60 border border-violet-500/15 shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center gap-10">
+            {/* Ambient styling background glow */}
+            <div className="absolute -top-24 -left-20 w-80 h-80 bg-red-650/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="absolute -bottom-24 -right-20 w-80 h-80 bg-violet-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div className="flex-1 space-y-6">
+              <span className="px-3 py-1 bg-red-500/10 border border-red-500/20 text-xs font-mono text-red-400 rounded-full font-bold uppercase tracking-widest inline-block">
+                Official YouTube channel
+              </span>
+              <h2 className="text-2xl md:text-3.5xl font-extrabold text-white leading-tight">
+                Master AI Engineering with <span className="bg-gradient-to-r from-red-500 via-rose-400 to-white bg-clip-text text-transparent">Shubh Prompt</span>
+              </h2>
+              <p className="text-sm text-gray-300 font-sans leading-relaxed">
+                Step-by-step tutorials, custom prompt hacks, Midjourney design guides, and advanced LLM orchestrations. Follow Shubh Prompt on YouTube to learn how to create premium images, generate outstanding copy, and master the art of prompt engineering from scratch.
+              </p>
+              <div className="flex flex-wrap items-center gap-4 pt-2">
+                <a
+                  href="https://www.youtube.com/@ShubhPrompt"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-6 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-sans text-sm font-bold flex items-center gap-2.5 transition duration-300 shadow-[0_10px_25px_rgba(220,38,38,0.3)] select-none cursor-pointer"
+                >
+                  <OriginalYoutubeLogo className="w-5 h-5 shrink-0" />
+                  Visit Shubh Prompt on YouTube
+                </a>
+              </div>
             </div>
-          ) : watchPrompts.length === 0 ? (
-            <div className="text-center py-20 bg-[#1E293B]/40 rounded-3xl border border-violet-500/10">
-              <Video className="w-12 h-12 text-gray-500 mx-auto mb-4 animate-pulse" />
-              <p className="text-sm text-gray-400">No prompt demo videos published yet. Check back soon!</p>
+
+            <div className="w-full md:w-2/5 shrink-0 relative group">
+              <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-red-600 to-violet-600 opacity-40 blur-lg group-hover:opacity-75 transition duration-500"></div>
+              <div className="relative aspect-video rounded-2xl overflow-hidden bg-slate-900 border border-violet-500/20">
+                <img
+                  src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800"
+                  alt="Shubh Prompt YouTube Logo banner"
+                  className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500"
+                />
+                <a
+                  href="https://www.youtube.com/@ShubhPrompt"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/50 transition-colors"
+                >
+                  <OriginalYoutubeLogo className="w-18 h-18 drop-shadow-[0_0_20px_rgba(255,0,0,0.6)] transform hover:scale-110 transition-transform duration-300" />
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- FAVORITE PROMPTS PAGE --- */}
+      {activeTab === "favorites" && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-24 space-y-8 animate-fadeIn">
+          {/* Header */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-violet-500/10 pb-6">
+            <div>
+              <h1 className="text-3xl font-extrabold font-sans text-white tracking-tight flex items-center gap-2.5">
+                <Heart className="w-8 h-8 text-rose-500 fill-rose-500 animate-pulse shrink-0" />
+                My Favorite Prompt Blueprints
+              </h1>
+              <p className="text-xs text-[#94A3B8] font-sans mt-1">
+                Your curated high-performance AI prompts saved in your browser storage.
+              </p>
+            </div>
+
+            {/* Total Results */}
+            <span className="text-xs font-mono text-gray-400 bg-[#0F172A]/50 border border-violet-500/10 px-3.5 py-1.5 rounded-full shrink-0">
+              Total Favorites: <strong>{favoritedPrompts.length} templates</strong>
+            </span>
+          </div>
+
+          {/* Favorites Content */}
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <PromptCardSkeleton />
+              <PromptCardSkeleton />
+              <PromptCardSkeleton />
+            </div>
+          ) : favoritedPrompts.length === 0 ? (
+            <div className="py-24 text-center rounded-3xl border border-dashed border-violet-500/15 bg-[#1E293B]/20 max-w-3xl mx-auto space-y-6">
+              <div className="relative inline-flex items-center justify-center">
+                <div className="absolute inset-0 w-16 h-16 bg-rose-500/20 rounded-full blur-md animate-ping" />
+                <Heart className="w-12 h-12 text-rose-500/40 relative" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-bold text-white font-sans">No favorites saved yet</h3>
+                <p className="text-xs text-gray-400 font-sans max-w-sm mx-auto leading-relaxed">
+                  Browse the prompt catalog and click the heart icon on any prompt card to save it here for swift access.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedPlatform("All Platforms");
+                  setSelectedCategory("All Categories");
+                  setActiveTab("prompts");
+                }}
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-sans text-xs font-semibold shadow-lg transition duration-200 cursor-pointer"
+              >
+                Browse Premium Catalog
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {watchPrompts.filter(wp => wp.published !== false).map((wp) => {
-                return (
-                  <div
-                    key={wp.id}
-                    className="group bg-[#24324A] border border-violet-500/10 rounded-2xl overflow-hidden hover:border-cyan-500/30 transition-all duration-300 shadow-xl flex flex-col justify-between"
+              <AnimatePresence>
+                {favoritedPrompts.map((p) => (
+                  <motion.div
+                    key={p.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ duration: 0.2 }}
                   >
-                    <div className="relative aspect-video bg-slate-900 overflow-hidden">
-                      <img
-                        src={wp.thumbnailUrl || `https://img.youtube.com/vi/${wp.videoUrl.split('v=')[1] || wp.videoUrl.split('/').pop()}/0.jpg` || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600"}
-                        alt={wp.title}
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) => {
-                          e.currentTarget.src = "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=600";
-                        }}
-                      />
-                      <span className="absolute top-3 left-3 bg-fuchsia-600/90 text-white font-mono text-[9px] uppercase tracking-wider font-bold px-2.5 py-1 rounded-md backdrop-blur-sm shadow-md">
-                        {wp.platform}
-                      </span>
-
-                      <a
-                        href={wp.videoUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={() => {
-                          fetch("/api/analytics/track", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ type: "watch_prompt_view", watchPromptId: wp.id })
-                          });
-                        }}
-                        className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-black/50 transition-colors"
-                      >
-                        <div className="w-12 h-12 rounded-full bg-cyan-500 text-slate-900 group-hover:bg-[#7C3AED] group-hover:text-white flex items-center justify-center shadow-lg transition-transform hover:scale-110">
-                          <Play className="w-5 h-5 fill-current ml-0.5" />
-                        </div>
-                      </a>
-                    </div>
-
-                    <div className="p-5 space-y-2 flex-grow flex flex-col justify-between">
-                      <div>
-                        <h3 className="font-sans font-bold text-white text-base group-hover:text-cyan-300 transition-colors line-clamp-1">
-                          {wp.title}
-                        </h3>
-                        <p className="text-xs text-gray-300 font-sans leading-relaxed line-clamp-2">
-                          {wp.description}
-                        </p>
-                      </div>
-                      <div className="pt-3 border-t border-violet-500/5 flex justify-between items-center text-[10px] font-mono text-gray-400">
-                        <span>Logged views: {wp.views || 0}</span>
-                        <a
-                          href={wp.videoUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-cyan-400 hover:underline flex items-center gap-1 font-bold group-hover:translate-x-0.5 transition-transform"
-                        >
-                          Watch Video
-                          <ArrowUpDown className="w-3.5 h-3.5 rotate-90" />
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                    <PromptCard
+                      prompt={p}
+                      onClick={() => handleSelectPrompt(p)}
+                      onCopyDirect={handleCopyPromptDirect}
+                      onLikeDirect={handleLikePromptDirect}
+                      copiedId={copiedId}
+                      isComparing={compareList.some(comp => comp.id === p.id)}
+                      onToggleCompare={handleToggleCompare}
+                    />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
           )}
         </div>
@@ -1729,6 +1816,8 @@ export default function App() {
               <button onClick={() => { setActiveTab("prompts"); setSelectedPlatform("All Platforms"); }} className="text-left hover:text-white transition text-slate-400">Prompts Explorer</button>
               <button onClick={() => { setActiveTab("guides"); }} className="text-left hover:text-white transition text-slate-400">Educational Guides</button>
               <button onClick={() => { setActiveTab("trending"); }} className="text-left hover:text-white transition text-slate-400">Trending Board</button>
+              <button onClick={() => { setActiveTab("watch"); }} className="text-left hover:text-white transition text-slate-400 flex items-center gap-1.5 col-span-2 mt-1 font-semibold text-rose-400"><Youtube className="w-3.5 h-3.5 fill-red-500 text-red-500 animate-pulse shrink-0" />How to Use ShubhPrompt</button>
+              <button onClick={() => { setActiveTab("favorites"); }} className="text-left hover:text-white transition text-rose-400 flex items-center gap-1.5 col-span-2 mt-0.5 font-semibold"><Heart className="w-3.2 h-3.2 fill-rose-500 text-rose-500 animate-pulse shrink-0" />My Favorites</button>
             </div>
           </div>
 

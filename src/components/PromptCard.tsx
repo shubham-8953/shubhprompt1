@@ -1,6 +1,7 @@
 import React from "react";
 import { Prompt } from "../types";
 import { Eye, Copy, Check, Heart, Share2, Sparkles, ExternalLink, Youtube, Columns } from "lucide-react";
+import { OriginalYoutubeLogo } from "./OriginalYoutubeLogo";
 import { motion, AnimatePresence } from "motion/react";
 
 interface PromptCardProps {
@@ -46,6 +47,20 @@ export default function PromptCard({
     }
   };
 
+  const [localCopied, setLocalCopied] = React.useState(false);
+
+  React.useEffect(() => {
+    if (copiedId === prompt.id) {
+      setLocalCopied(true);
+      const timer = setTimeout(() => {
+        setLocalCopied(false);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else {
+      setLocalCopied(false);
+    }
+  }, [copiedId, prompt.id]);
+
   const isCopied = copiedId === prompt.id;
 
   return (
@@ -61,31 +76,31 @@ export default function PromptCard({
 
       {/* Copy Success Overlay */}
       <AnimatePresence>
-        {isCopied && (
+        {localCopied && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="absolute inset-0 bg-[#0F172A]/85 backdrop-blur-xs z-40 flex flex-col items-center justify-center pointer-events-none"
+            transition={{ duration: 0.15 }}
+            className="absolute inset-0 bg-[#0F172A]/70 backdrop-blur-[2px] z-40 flex flex-col items-center justify-center pointer-events-none"
           >
             <motion.div
-              initial={{ scale: 0.4, opacity: 0, y: 15 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.6, opacity: 0, y: -10 }}
-              transition={{ type: "spring", stiffness: 380, damping: 20 }}
-              className="bg-emerald-500/20 border border-emerald-500/30 rounded-full p-3.5 shadow-[0_0_25px_rgba(16,185,129,0.25)] mb-2"
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 450, damping: 22 }}
+              className="bg-emerald-500 text-[#0f172a] rounded-full p-3 shadow-[0_0_30px_rgba(16,185,129,0.55)] border border-emerald-400 flex items-center justify-center h-12 w-12"
             >
-              <Check className="w-8 h-8 text-emerald-400" />
+              <Check className="w-6 h-6 stroke-[3.5px]" />
             </motion.div>
             <motion.span
-              initial={{ opacity: 0, y: 5 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={{ delay: 0.08, duration: 0.15 }}
-              className="text-emerald-300 font-mono text-xs font-bold tracking-widest uppercase"
+              className="text-emerald-400 font-mono text-[10px] font-bold tracking-widest uppercase mt-2.5 bg-slate-950/40 px-2 py-0.5 rounded"
             >
-              Copied to Clipboard!
+              Copied!
             </motion.span>
           </motion.div>
         )}
@@ -201,18 +216,16 @@ export default function PromptCard({
 
           {/* Action trigger btn */}
           <div className="flex items-center gap-1.5">
-            {(prompt.videoDemo || prompt.video_link) && (
-              <a
-                href={prompt.videoDemo || prompt.video_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="p-2 rounded-lg bg-red-650/10 hover:bg-red-600/25 text-red-500 hover:text-white border border-red-500/10 hover:border-red-500/30 transition-all cursor-pointer flex items-center justify-center"
-                title="Watch Video Demo on YouTube"
-              >
-                <Youtube className="w-3.5 h-3.5" />
-              </a>
-            )}
+            <a
+              href={prompt.video_link || prompt.videoDemo || "https://www.youtube.com/@ShubhPrompt"}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="p-2 rounded-lg bg-red-650/10 hover:bg-red-600/25 border border-red-500/10 hover:border-red-500/30 transition-all cursor-pointer flex items-center justify-center"
+              title="How to Use Shubh Prompt"
+            >
+              <OriginalYoutubeLogo className="w-4 h-3.5" />
+            </a>
 
             <button
               id={`quick-copy-btn-${prompt.id}`}

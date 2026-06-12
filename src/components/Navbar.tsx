@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sparkles, Search, Compass, BookOpen, Flame, Mail, Download, LogIn, Laptop, Moon, Sun, Monitor, CircleAlert, Video, Menu, X } from "lucide-react";
+import { Sparkles, Search, Compass, BookOpen, Flame, Mail, Download, LogIn, Laptop, Moon, Sun, Monitor, CircleAlert, Video, Menu, X, Youtube, Heart } from "lucide-react";
 import { AppSettings } from "../types";
 
 interface NavbarProps {
@@ -73,7 +73,9 @@ export default function Navbar({
     { id: "midjourney-prompts", label: "Midjourney Prompts", icon: Sparkles },
     { id: "chatgpt-gemini", label: "ChatGPT/Gemini", icon: Sparkles },
     { id: "trending", label: "Trending", icon: Flame },
-    { id: "guides", label: "AI Guides (Blog)", icon: BookOpen }
+    { id: "guides", label: "AI Guides (Blog)", icon: BookOpen },
+    { id: "watch", label: "How to Use", icon: Youtube },
+    { id: "favorites", label: "My Favorites", icon: Heart }
   ];
 
   return (

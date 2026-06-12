@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Prompt } from "../types";
-import { X, Copy, Share2, Heart, ExternalLink, Sparkles, Check, Play, Eye, FileText, LayoutGrid, Cpu, Layers, QrCode } from "lucide-react";
+import { X, Copy, Share2, Heart, ExternalLink, Sparkles, Check, Play, Eye, FileText, LayoutGrid, Cpu, Layers, QrCode, Youtube } from "lucide-react";
+import { OriginalYoutubeLogo } from "./OriginalYoutubeLogo";
 import QRCode from "qrcode";
 import { motion } from "motion/react";
 
@@ -223,42 +224,31 @@ export default function PromptDetailsModal({
           
           {/* Canvas Frame holding image previews */}
           <div className="relative h-64 md:h-80 bg-slate-950 flex items-center justify-center overflow-hidden">
-            {prompt.videoDemo && isPlayingVideo ? (
-              <video
-                src={prompt.videoDemo}
-                autoPlay
-                controls
+            <>
+              <img
+                src={prompt.coverImage || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1200"}
+                alt={prompt.title}
                 referrerPolicy="no-referrer"
-                className="w-full h-full object-cover"
-                onEnded={() => setIsPlayingVideo(false)}
+                loading="lazy"
+                className="w-full h-full object-cover opacity-90 hover:scale-105 transition-transform duration-500"
               />
-            ) : (
-              <>
-                <img
-                  src={prompt.coverImage || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1200"}
-                  alt={prompt.title}
-                  referrerPolicy="no-referrer"
-                  loading="lazy"
-                  className="w-full h-full object-cover opacity-90 hover:scale-105 transition-transform duration-500"
-                />
-                
-                {/* Visual shade overlays */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#1E293B] via-[#1E293B]/20 to-transparent" />
+              
+              {/* Visual shade overlays */}
+              <div className="absolute inset-0 bg-gradient-to-t from-[#1E293B] via-[#1E293B]/20 to-transparent" />
 
-                {/* Cover-to-Video CTA Overlay */}
-                {prompt.videoDemo && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <button
-                      onClick={() => setIsPlayingVideo(true)}
-                      className="group p-5 rounded-full bg-[#7C3AED]/95 text-white border border-violet-400/40 hover:bg-violet-600 shadow-[0_0_30px_rgba(124,58,237,0.5)] transform hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2 font-semibold text-sm"
-                    >
-                      <Play className="w-5 h-5 fill-current text-white animate-pulse" />
-                      <span>Watch Prompt Implementation Video</span>
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
+              {/* Cover-to-Video CTA Overlay */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <a
+                  href="https://www.youtube.com/@ShubhPrompt"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group p-5 rounded-full bg-red-650/95 text-white border border-red-500 hover:bg-red-700 shadow-[0_0_30px_rgba(220,38,38,0.5)] transform hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2 font-semibold text-sm cursor-pointer select-none"
+                >
+                  <OriginalYoutubeLogo className="w-6 h-6 animate-pulse shrink-0" />
+                  <span>How to Use Shubh Prompt</span>
+                </a>
+              </div>
+            </>
 
             {/* Bottom Floating Info Badge */}
             <div className="absolute bottom-4 left-6 flex items-center gap-3">
@@ -419,12 +409,12 @@ export default function PromptDetailsModal({
 
                 {/* How to Use Shubh Prompt tutorial button */}
                 <a
-                  href={prompt.video_link || prompt.videoDemo || "https://youtube.com"}
+                  href="https://www.youtube.com/@ShubhPrompt"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-sans text-xs font-semibold flex items-center justify-center gap-2 transition duration-300 shadow-md cursor-pointer text-center select-none"
+                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-sans text-xs font-semibold flex items-center justify-center gap-2 transition duration-300 shadow-md cursor-pointer text-center select-none"
                 >
-                  <Play className="fill-amber-400 text-amber-400 w-3.5 h-3.5 shrink-0 animate-pulse" />
+                  <OriginalYoutubeLogo className="w-5 h-4 shrink-0 animate-pulse" />
                   <span>How to Use Shubh Prompt</span>
                 </a>
 
