@@ -86,7 +86,7 @@ export default function CompliancePages({ section, setTab, triggerNotification }
               <ShieldCheck className="w-6 h-6" />
             </div>
             <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">Privacy Policy</h1>
-            <span className="text-xs font-mono text-emerald-400 block mt-2">Effective Date: June 2026 &bull; AdSense Compliant Standards</span>
+            <span className="text-xs font-mono text-emerald-400 block mt-2">Effective Date: June 2026 &bull; Data Security Standards</span>
           </div>
         )}
 

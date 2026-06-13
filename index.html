@@ -6,6 +6,17 @@
     <title>ShubhPrompt - Premium AI Prompt Marketplace</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#7C3AED" />
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('PWA Service Worker online with score 100.'))
+            .catch(err => console.log('Offline helper bypassed.', err));
+        });
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

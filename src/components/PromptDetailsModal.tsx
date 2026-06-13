@@ -196,12 +196,6 @@ export default function PromptDetailsModal({
       {/* Main Container Overhaul */}
       <div className="relative w-full max-w-4xl bg-[#1E293B] border border-violet-500/20 rounded-3xl overflow-hidden shadow-[0_30px_90px_rgba(0,0,0,0.85)] z-10 flex flex-col max-h-[92vh]">
         
-        {/* AdSense Placement Anchor - Top Ad Tag */}
-        <div className="bg-[#0F172A] border-b border-violet-500/10 py-1.5 px-4 text-center text-[10px] font-mono text-cyan-400 font-semibold tracking-wider flex items-center justify-between">
-          <span>AdSense Host Anchor: shubhprompt.online</span>
-          <span className="hidden sm:inline bg-[#1E293B] px-2 py-0.2 rounded text-[9px] text-gray-500 border border-white/5">Auto-Refreshed Ad Block</span>
-        </div>
-
         {/* Action Controls */}
         <div className="absolute top-12 right-4 z-20 flex items-center gap-2">
           <button
@@ -256,15 +250,6 @@ export default function PromptDetailsModal({
                 <Sparkles className="w-3.5 h-3.5 animate-spin" />
                 {prompt.category}
               </span>
-            </div>
-          </div>
-
-          {/* AdSense Inline Ad Block placeholder hook */}
-          <div className="px-6 md:px-8 pt-4">
-            {/* Google AdSense - Inline Ad Placement */}
-            <div className="w-full py-2 px-4 bg-slate-900/40 border border-dashed border-violet-500/15 rounded-xl text-center text-[9px] font-mono text-gray-500 flex items-center justify-between">
-              <span>Inline Sponsor Link</span>
-              <span>Matched Query Content</span>
             </div>
           </div>
 

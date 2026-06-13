@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Sparkles, Search, Compass, BookOpen, Flame, Mail, Download, LogIn, Laptop, Moon, Sun, Monitor, CircleAlert, Video, Menu, X, Youtube, Heart } from "lucide-react";
 import { AppSettings } from "../types";
 
@@ -36,6 +36,49 @@ export default function Navbar({
   const [isInstallable, setIsInstallable] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
+  const [isFocused, setIsFocused] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [isMac, setIsMac] = useState(true);
+
+  useEffect(() => {
+    // Detect OS for shortcut hint
+    if (typeof window !== "undefined" && navigator) {
+      setIsMac(/Mac|iPod|iPhone|iPad/.test(navigator.userAgent));
+    }
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in form inputs, textareas, etc.
+      const activeEl = document.activeElement;
+      if (activeEl) {
+        const tag = activeEl.tagName.toLowerCase();
+        const contentEditable = activeEl.getAttribute("contenteditable");
+        if (
+          tag === "input" ||
+          tag === "textarea" ||
+          contentEditable === "true" ||
+          contentEditable === ""
+        ) {
+          // If already focusing our search bar, pressing Escape should blur it
+          if (e.key === "Escape" && activeEl.id === "search-input-navbar") {
+            searchInputRef.current?.blur();
+          }
+          return;
+        }
+      }
+
+      // Check for '/' or 'cmd+k' / 'ctrl+k'
+      if (e.key === "/" || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k")) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleGlobalKeyDown);
+    };
+  }, []);
+
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
@@ -70,12 +113,7 @@ export default function Navbar({
 
   const navItems = [
     { id: "home", label: "Home", icon: Compass },
-    { id: "midjourney-prompts", label: "Midjourney Prompts", icon: Sparkles },
-    { id: "chatgpt-gemini", label: "ChatGPT/Gemini", icon: Sparkles },
-    { id: "trending", label: "Trending", icon: Flame },
-    { id: "guides", label: "AI Guides (Blog)", icon: BookOpen },
-    { id: "watch", label: "How to Use", icon: Youtube },
-    { id: "favorites", label: "My Favorites", icon: Heart }
+    { id: "guides", label: "AI Guides (Blog)", icon: BookOpen }
   ];
 
   return (
@@ -159,35 +197,62 @@ export default function Navbar({
                 </button>
               );
             })}
-            <button
-              id="nav-item-contact"
-              onClick={onOpenContact}
-              className="px-4 py-2 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-all duration-200 flex items-center gap-1.5"
-            >
-              <Mail className="w-4 h-4 text-gray-400" />
-              Contact
-            </button>
           </div>
 
-          {/* Search Box */}
-          <div className="hidden md:flex flex-1 max-w-xs mx-4">
-            <div className="relative w-full">
-              <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-4 h-4 text-violet-400" />
-              </span>
-              <input
-                id="search-input-navbar"
-                type="text"
-                placeholder="Search premium prompts..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  if (activeTab === "home") {
-                    setActiveTab("prompts");
-                  }
-                }}
-                className="w-full bg-[#1E293B] border border-violet-500/20 hover:border-violet-500/40 focus:border-cyan-500/80 focus:ring-1 focus:ring-cyan-500/80 rounded-full py-2.5 pl-10 pr-4 text-xs font-sans text-white placeholder-gray-400 transition-all duration-300"
-              />
+          {/* Search Box with Advanced Interactions */}
+          <div className={`hidden md:flex items-center transition-all duration-300 ease-out mx-4 ${isFocused ? "flex-grow max-w-[380px]" : "max-w-[240px] flex-1"}`}>
+            <div className="relative w-full group">
+              {/* Background gradient outline glow */}
+              <div className={`absolute -inset-[1px] rounded-full bg-gradient-to-r from-cyan-500/30 to-violet-500/30 blur-[2px] transition-opacity duration-300 ${isFocused ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`} />
+              
+              <div className="relative flex items-center w-full">
+                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none z-10">
+                  <Search className={`h-4 w-4 transition-colors duration-300 ${isFocused ? "text-cyan-400" : "text-violet-400 group-hover:text-violet-300"}`} />
+                </span>
+                
+                <input
+                  id="search-input-navbar"
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search premium prompts..."
+                  value={searchQuery}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => setIsFocused(false)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    if (activeTab === "home") {
+                      setActiveTab("prompts");
+                    }
+                  }}
+                  className={`w-full bg-[#0F172A]/90 border rounded-full py-2 pl-10 text-xs font-sans text-white placeholder-gray-400 transition-all duration-300 ${
+                    isFocused 
+                      ? "border-cyan-500/80 ring-1 ring-cyan-500/30 pr-10 shadow-[0_0_15px_rgba(34,211,238,0.15)] bg-[#151F32]" 
+                      : "border-violet-500/20 group-hover:border-violet-500/40 pr-16 bg-[#111827]/80"
+                  }`}
+                />
+
+                {/* Right widgets: Keyboard Shortcut hint or Clear button */}
+                <div className="absolute inset-y-0 right-0 flex items-center pr-2.5">
+                  {searchQuery ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery("");
+                        searchInputRef.current?.focus();
+                      }}
+                      className="p-1 rounded-full text-gray-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all duration-200 cursor-pointer"
+                      title="Clear search"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  ) : (
+                    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 font-mono text-[9px] font-medium text-violet-400/80 bg-violet-500/5 hover:bg-violet-500/10 border border-violet-500/10 rounded-md transition-opacity duration-200 select-none pointer-events-none ${isFocused ? "opacity-0" : "opacity-100"}`}>
+                      <span>{isMac ? "⌘" : "Ctrl"}</span>
+                      <span>K</span>
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -262,24 +327,39 @@ export default function Navbar({
         <div className="absolute top-full left-0 right-0 lg:hidden bg-[#0F172A]/98 border-b border-violet-500/15 backdrop-blur-3xl px-5 pt-3 pb-8 space-y-2.5 shadow-[0_20px_50px_rgba(0,0,0,0.85)] max-h-[calc(100vh-5rem)] overflow-y-auto animate-in fade-in slide-in-from-top-4 duration-200 z-50">
           {/* Mobile Search Input Block */}
           <div className="py-2.5">
-            <div className="relative w-full">
-              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                <Search className="h-4 w-4 text-violet-400" />
-              </span>
-              <input
-                id="search-input-navbar-mobile"
-                type="text"
-                placeholder="Search premium prompts..."
-                value={searchQuery}
-                aria-label="Search prompts"
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  if (activeTab === "home") {
-                    setActiveTab("prompts");
-                  }
-                }}
-                className="w-full bg-[#1E293B] border border-violet-500/30 hover:border-violet-500/50 focus:border-cyan-400/80 focus:ring-1 focus:ring-cyan-400/80 rounded-full py-3.5 pl-11 pr-5 text-sm font-sans text-white focus:outline-none transition-all duration-300 placeholder-gray-400"
-              />
+            <div className="relative w-full group">
+              <div className="absolute -inset-[1px] bg-gradient-to-r from-cyan-500/20 to-violet-500/20 rounded-full blur-[1px]" />
+              <div className="relative flex items-center w-full">
+                <span className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Search className="h-4 w-4 text-violet-400" />
+                </span>
+                <input
+                  id="search-input-navbar-mobile"
+                  type="text"
+                  placeholder="Search premium prompts..."
+                  value={searchQuery}
+                  aria-label="Search prompts"
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    if (activeTab === "home") {
+                      setActiveTab("prompts");
+                    }
+                  }}
+                  className="w-full bg-[#151F32] border border-violet-500/30 focus:border-cyan-400/85 focus:ring-1 focus:ring-cyan-400/50 rounded-full py-3 pl-11 pr-10 text-sm font-sans text-white focus:outline-none transition-all duration-300 placeholder-gray-400"
+                />
+                {searchQuery && (
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="p-1.5 rounded-full text-gray-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all duration-200 cursor-pointer"
+                      title="Clear search"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -327,18 +407,6 @@ export default function Navbar({
                 </button>
               );
             })}
-
-            <button
-              id="mobile-nav-contact"
-              onClick={() => {
-                onOpenContact();
-                setMobileMenuOpen(false);
-              }}
-              className="w-full text-left px-5 py-3.5 rounded-xl text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/5 active:bg-white/10 transition-all duration-200 flex items-center gap-3.5"
-            >
-              <Mail className="w-5 h-5 text-gray-400" />
-              Contact Support
-            </button>
 
             {/* Mobile Admin Management Controls */}
             {isAdminLoggedIn ? (

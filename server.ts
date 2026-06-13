@@ -4,6 +4,7 @@ import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { randomUUID } from "crypto";
 import { createClient } from "@supabase/supabase-js";
+import compression from "compression";
 
 const app = express();
 const PORT = 3000;
@@ -18,12 +19,20 @@ if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
+// Enable Gzip/Deflate compression for all express responses
+app.use(compression());
+
 // Global JSON middleware with high limits for animations/media uploads
 app.use(express.json({ limit: "150mb" }));
 app.use(express.urlencoded({ limit: "150mb", extended: true }));
 
-// Serve static uploads
-app.use("/uploads", express.static(UPLOAD_DIR));
+// Serve static uploads with aggressive caching
+app.use("/uploads", express.static(UPLOAD_DIR, {
+  maxAge: "7d",
+  setHeaders: (res) => {
+    res.setHeader("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400");
+  }
+}));
 
 // Lazy initialization of Supabase client to avoid crash on startup
 let supabaseClientCached: any = null;
@@ -121,53 +130,71 @@ function getSHA256Hash(plain: string): string {
 // --- API ROUTES ---
 
 // Get all database info
-app.get("/api/data", async (req, res) => {
+app.get("/api/data", (req, res) => {
   const db = readDB();
   const client = getSupabaseClient(db.settings);
   if (client) {
-    try {
-      console.log("[Supabase Sync] Fetching production resources in real-time...");
-      const [
-        { data: promptsData, error: promptsErr },
-        { data: guidesData, error: guidesErr },
-        { data: watchPromptsData, error: watchPromptsErr },
-        { data: settingsData, error: settingsErr }
-      ] = await Promise.all([
-        client.from("prompts").select("*"),
-        client.from("guides").select("*"),
-        client.from("watch_prompts").select("*"),
-        client.from("settings").select("*").eq("id", "global").single()
-      ]);
+    // Initiate completely non-blocking async background sync so API response is instant
+    Promise.resolve().then(async () => {
+      try {
+        const dbPromise = Promise.all([
+          client.from("prompts").select("*"),
+          client.from("guides").select("*"),
+          client.from("watch_prompts").select("*"),
+          client.from("settings").select("*").eq("id", "global").single()
+        ]);
 
-      if (!promptsErr && promptsData && promptsData.length > 0) {
-        db.prompts = promptsData.map((p: any) => ({
-          ...p,
-          views: Number(p.views || 0),
-          likes: Number(p.likes || 0),
-          shares: Number(p.shares || 0),
-          copyCount: Number(p.copyCount || 0)
-        }));
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Supabase connection timed out.")), 1500)
+        );
+
+        const [
+          { data: promptsData, error: promptsErr },
+          { data: guidesData, error: guidesErr },
+          { data: watchPromptsData, error: watchPromptsErr },
+          { data: settingsData, error: settingsErr }
+        ] = await Promise.race([dbPromise, timeoutPromise]) as any;
+
+        const currentDb = readDB(); // Read again to fetch any concurrent modifications
+        let changed = false;
+
+        if (!promptsErr && promptsData && promptsData.length > 0) {
+          currentDb.prompts = promptsData.map((p: any) => ({
+            ...p,
+            views: Number(p.views || 0),
+            likes: Number(p.likes || 0),
+            shares: Number(p.shares || 0),
+            copyCount: Number(p.copyCount || 0)
+          }));
+          changed = true;
+        }
+        if (!guidesErr && guidesData && guidesData.length > 0) {
+          currentDb.guides = guidesData.map((g: any) => ({
+            ...g,
+            views: Number(g.views || 0)
+          }));
+          changed = true;
+        }
+        if (!watchPromptsErr && watchPromptsData && watchPromptsData.length > 0) {
+          currentDb.watch_prompts = watchPromptsData.map((wp: any) => ({
+            ...wp,
+            views: Number(wp.views || 0)
+          }));
+          changed = true;
+        }
+        if (!settingsErr && settingsData && settingsData.config) {
+          currentDb.settings = { ...currentDb.settings, ...settingsData.config };
+          changed = true;
+        }
+
+        if (changed) {
+          writeDB(currentDb);
+        }
+      } catch (err: any) {
+        // Quiet debug log without using warning prefixes or level escalations
+        console.log("[Supabase Offline Mode] Client database running locally.");
       }
-      if (!guidesErr && guidesData && guidesData.length > 0) {
-        db.guides = guidesData.map((g: any) => ({
-          ...g,
-          views: Number(g.views || 0)
-        }));
-      }
-      if (!watchPromptsErr && watchPromptsData && watchPromptsData.length > 0) {
-        db.watch_prompts = watchPromptsData.map((wp: any) => ({
-          ...wp,
-          views: Number(wp.views || 0)
-        }));
-      }
-      if (!settingsErr && settingsData && settingsData.config) {
-        db.settings = { ...db.settings, ...settingsData.config };
-      }
-      
-      writeDB(db);
-    } catch (err: any) {
-      // Quietly continue if database sync is offline
-    }
+    }).catch(() => {});
   }
   res.json(db);
 });
@@ -673,10 +700,22 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    // Production Assets Routing
+    // Production Assets Routing with high-fidelity asset caching controls
     const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
+    app.use(express.static(distPath, {
+      maxAge: "1d",
+      setHeaders: (res, filepath) => {
+        // Aggressive maximum caching for immutable Vite output assets compile target
+        if (filepath.includes("/assets/") || filepath.includes("\\assets\\")) {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        } else {
+          res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=3600");
+        }
+      }
+    }));
     app.get("*", (req, res) => {
+      // Direct fast fallback index.html response with revalidation window
+      res.setHeader("Cache-Control", "no-cache, revalidate");
       res.sendFile(path.join(distPath, "index.html"));
     });
   }

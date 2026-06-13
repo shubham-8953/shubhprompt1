@@ -135,7 +135,15 @@ export default function AdminPanel({
   const fetchAdminPrompts = async () => {
     try {
       const q = query(collection(db, "prompts"), orderBy("created_at", "desc"));
-      const querySnapshot = await getDocs(q);
+      
+      // Fast-timeout race: if Firebase connection is blocked or extremely slow,
+      // fail fast with a clear timeout to avoid stalling the admin panel dashboard load.
+      const dbPromise = getDocs(q);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Admin Firestore connection timeout limit exceeded.")), 1500)
+      );
+      
+      const querySnapshot = await Promise.race([dbPromise, timeoutPromise]) as any;
       const list: any[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
