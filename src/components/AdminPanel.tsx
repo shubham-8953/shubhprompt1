@@ -48,8 +48,11 @@ import {
   Tag,
   EyeOff,
   Files,
-  Columns
+  Columns,
+  Wand2
 } from "lucide-react";
+
+import DraftsManager from "./DraftsManager";
 
 interface AdminPanelProps {
   prompts: Prompt[];
@@ -95,8 +98,31 @@ export default function AdminPanel({
 
   // Layout tabs inside Admin
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "prompts" | "guides" | "watch_prompts" | "media" | "categories" | "analytics" | "settings"
+    "dashboard" | "prompts" | "guides" | "watch_prompts" | "media" | "categories" | "analytics" | "settings" | "drafts"
   >("dashboard");
+
+  // Synchronize deep-linked "/admin/drafts" or "#admin/drafts" on mount/routing triggers
+  useEffect(() => {
+    const handleAdminRouteSync = () => {
+      const path = window.location.pathname;
+      const hash = window.location.hash;
+      if (
+        path === "/admin/drafts" || 
+        hash === "#admin/drafts" || 
+        hash === "#admin-drafts" ||
+        path.endsWith("/drafts")
+      ) {
+        setActiveTab("drafts");
+      }
+    };
+    handleAdminRouteSync();
+    window.addEventListener("hashchange", handleAdminRouteSync);
+    window.addEventListener("popstate", handleAdminRouteSync);
+    return () => {
+      window.removeEventListener("hashchange", handleAdminRouteSync);
+      window.removeEventListener("popstate", handleAdminRouteSync);
+    };
+  }, []);
 
   // Forms state
   const [editingPrompt, setEditingPrompt] = useState<Partial<Prompt> | null>(null);
@@ -435,20 +461,11 @@ export default function AdminPanel({
       const youtubeVideoLinkState = editingPrompt.videoDemo || "";
 
       try {
-        const formData = new FormData();
-        formData.append("image", imageFile);
-
-        const response = await fetch("https://api.imgbb.com/1/upload?key=3ab7f3382637df85b5fbc582def29e52", {
-          method: "POST",
-          body: formData
-        });
-
-        const data = await response.json();
-        if (!data.success) {
-          throw new Error("ImgBB API Error: " + (data.error?.message || "Unknown"));
+        setUploadStatus("⏳ Step 1: Uploading image to Firebase Storage...");
+        const cloudUrl = await onUploadMedia(imageFile);
+        if (!cloudUrl) {
+          throw new Error("Unable to save image in Firebase Storage. Check config/rules.");
         }
-        
-        const cloudUrl = data.data.url;
         setUploadStatus("✅ Step 2: Image Uploaded! Saving to Database...");
 
         await addDoc(collection(db, "prompts"), {
@@ -828,6 +845,7 @@ export default function AdminPanel({
         {[
           { id: "dashboard", label: "Dashboard", icon: Award },
           { id: "prompts", label: "Prompts", icon: Sparkles },
+          { id: "drafts", label: "AI Drafts", icon: Wand2 },
           { id: "guides", label: "Guides", icon: BookOpen },
           { id: "watch_prompts", label: "Watch Prompts", icon: Video },
           { id: "media", label: "Media Library", icon: FileImage },
@@ -1078,6 +1096,17 @@ export default function AdminPanel({
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* --- MODULE AI DRAFTS: MANAGE AI PROMPT ENGINEERING pipeline --- */}
+      {activeTab === "drafts" && (
+        <div className="animate-fadeIn">
+          <DraftsManager 
+            onSavePrompt={onSavePrompt} 
+            onUploadMedia={onUploadMedia} 
+            token={token} 
+          />
         </div>
       )}
 

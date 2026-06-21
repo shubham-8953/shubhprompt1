@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, collection, getDocs, query, orderBy, doc, deleteDoc, updateDoc, increment, setLogLevel } from "firebase/firestore";
+import { getFirestore, collection, getDocs, query, orderBy, doc, deleteDoc, updateDoc, increment, setLogLevel, limit, startAfter, where } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAO2iZB-WLyQDUPGm_eanBXCrncupD-GvQ",
@@ -17,24 +19,69 @@ try {
   setLogLevel("silent");
 } catch (e) {}
 const db = getFirestore(app);
+const auth = getAuth(app);
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+  };
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid || null,
+      email: auth.currentUser?.email || null,
+      emailVerified: auth.currentUser?.emailVerified || null,
+      isAnonymous: auth.currentUser?.isAnonymous || null,
+    },
+    operationType,
+    path
+  };
+  console.error("Firestore Core Exception Triggered: ", JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import PromptCard from "./components/PromptCard";
-import PromptDetailsModal from "./components/PromptDetailsModal";
-import PromptCompareModal from "./components/PromptCompareModal";
-import GuideSection from "./components/GuideSection";
-import AdminPanel from "./components/AdminPanel";
 import ToastNotification, { ToastItem } from "./components/ToastNotification";
-import CompliancePages from "./components/CompliancePages";
 import { OriginalYoutubeLogo } from "./components/OriginalYoutubeLogo";
 import { Prompt, Guide, WatchPrompt, AppSettings, AnalyticsSummary, SUPPORTED_PLATFORMS, DEFAULT_CATEGORIES } from "./types";
 import { PromptCardSkeleton, GuideCardSkeleton, WatchPromptSkeleton } from "./components/SkeletonLoader";
-import { Sparkles, Copy, Star, SlidersHorizontal, ArrowUpDown, HelpCircle, X, Check, Heart, Mail, Github, Twitter, Info, Lock, FolderOpen, Film, Play, Video, Instagram, Youtube, Facebook, Eye, Share2, Trash2, ExternalLink, Columns } from "lucide-react";
+import { Sparkles, Copy, Star, SlidersHorizontal, ArrowUpDown, HelpCircle, X, Check, Heart, Mail, Github, Twitter, Info, Lock, FolderOpen, Film, Play, Video, Instagram, Youtube, Facebook, Eye, Share2, Trash2, ExternalLink, Columns, Loader2 } from "lucide-react";
+
+// Performance Code Splitting: Dynamically load heavy below-the-fold resources and modal blocks
+const PromptDetailsModal = React.lazy(() => import("./components/PromptDetailsModal"));
+const PromptCompareModal = React.lazy(() => import("./components/PromptCompareModal"));
+const GuideSection = React.lazy(() => import("./components/GuideSection"));
+const AdminPanel = React.lazy(() => import("./components/AdminPanel"));
+const CompliancePages = React.lazy(() => import("./components/CompliancePages"));
 
 export default function App() {
   const [promptsList, setPromptsList] = useState<any[]>([]);
   const [isPromptsListLoading, setIsPromptsListLoading] = useState<boolean>(true);
   const [copiedFirebaseId, setCopiedFirebaseId] = useState<string | null>(null);
+  
+  // High performance paginated states
+  const [lastVisibleDoc, setLastVisibleDoc] = useState<any>(null);
+  const [hasMorePrompts, setHasMorePrompts] = useState<boolean>(true);
+  const [displayLimit, setDisplayLimit] = useState<number>(20);
 
   const [prompts, setPrompts] = useState<Prompt[]>(() => {
     try {
@@ -252,7 +299,8 @@ export default function App() {
           likes: 562,
           shares: 140,
           copyCount: 790,
-          published: true
+          published: true,
+          is_published: true
         },
         {
           id: "prompt-2",
@@ -269,7 +317,8 @@ export default function App() {
           likes: 890,
           shares: 312,
           copyCount: 1110,
-          published: true
+          published: true,
+          is_published: true
         }
       ];
       setPrompts(fallbackPrompts);
@@ -304,65 +353,335 @@ export default function App() {
     }
   };
 
+  // Recursive load state for paginated listings
+  const fetchMoreFirebasePrompts = async () => {
+    if (!hasMorePrompts || isPromptsListLoading) return;
+    setIsPromptsListLoading(true);
+    try {
+      let q = query(
+        collection(db, "prompts"),
+        orderBy("created_at", "desc"),
+        limit(20)
+      );
+      if (lastVisibleDoc) {
+        q = query(
+          collection(db, "prompts"),
+          orderBy("created_at", "desc"),
+          startAfter(lastVisibleDoc),
+          limit(20)
+        );
+      }
+
+      const qSnapshot = await getDocs(q);
+      const docsCount = qSnapshot.docs.length;
+      if (docsCount < 20) {
+        setHasMorePrompts(false);
+      }
+      if (docsCount > 0) {
+        setLastVisibleDoc(qSnapshot.docs[docsCount - 1]);
+      }
+
+      const list: any[] = [];
+      qSnapshot.forEach((doc) => {
+        const data = doc.data();
+        const taglineFallback = data.tagline || (data.raw_prompt ? (data.raw_prompt.substring(0, 110) + "...") : "Industrial-grade prompt asset.");
+        const imageUrlFallback = data.image_url || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600";
+        list.push({
+          id: doc.id,
+          title: data.title || "Untitled Prompt",
+          tagline: taglineFallback,
+          raw_prompt: data.raw_prompt || "",
+          engine_category: data.engine_category || "General",
+          classification: data.classification || "AI Prompt",
+          search_tags: data.search_tags || ["AI", "Creative"],
+          image_url: imageUrlFallback,
+          video_link: data.video_link || "https://youtube.com",
+          total_views: data.total_views || 0,
+          total_likes: data.total_likes || 0,
+          total_shares: data.total_shares || 0,
+          
+          description: taglineFallback,
+          fullPrompt: data.raw_prompt || "",
+          category: data.classification || "AI Prompt",
+          platform: data.engine_category || "General",
+          tags: data.search_tags || ["AI", "Creative"],
+          coverImage: imageUrlFallback,
+          videoDemo: data.video_link || "https://youtube.com",
+          views: data.total_views || 0,
+          likes: data.total_likes || 0,
+          shares: data.total_shares || 0,
+          copyCount: data.total_copies || 0,
+          published: data.is_published === true,
+          is_published: data.is_published === true,
+          featured: data.is_featured === true,
+          createdAt: data.created_at || new Date().toISOString()
+        });
+      });
+
+      setPromptsList(prev => {
+        const existingIds = new Set(prev.map(p => p.id));
+        const nonDuplicates = list.filter(p => !existingIds.has(p.id));
+        return [...prev, ...nonDuplicates];
+      });
+    } catch (err) {
+      console.log("Error pagination loaded offline:", err);
+    } finally {
+      setIsPromptsListLoading(false);
+    }
+  };
+
   useEffect(() => {
     async function fetchFirebasePrompts() {
       setIsPromptsListLoading(true);
       try {
-        const q = query(collection(db, "prompts"), orderBy("created_at", "desc"));
-        
-        // Fast-timeout race: if Firebase takes too long or is blocked (e.g. offline sandbox constraints),
-        // reject immediately to prevent blocking initial load of local/dynamic resources.
-        const dbPromise = getDocs(q);
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Firebase Firestore connection timeout limit exceeded.")), 1500)
-        );
-        
-        const querySnapshot = await Promise.race([dbPromise, timeoutPromise]) as any;
         const list: any[] = [];
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          const taglineFallback = data.tagline || (data.raw_prompt ? (data.raw_prompt.substring(0, 110) + "...") : "Industrial-grade prompt asset.");
-          const imageUrlFallback = data.image_url || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600";
-          list.push({
-            id: doc.id,
-            title: data.title || "Untitled Prompt",
-            tagline: taglineFallback,
-            raw_prompt: data.raw_prompt || "",
-            engine_category: data.engine_category || "General",
-            classification: data.classification || "AI Prompt",
-            search_tags: data.search_tags || ["AI", "Creative"],
-            image_url: imageUrlFallback,
-            video_link: data.video_link || "https://youtube.com",
-            total_views: data.total_views || 0,
-            total_likes: data.total_likes || 0,
-            total_shares: data.total_shares || 0,
+        const seenIds = new Set<string>();
+
+        // 1. Fetch from "prompts" collection
+        try {
+          const qPrompts = query(
+            collection(db, "prompts"),
+            orderBy("created_at", "desc"),
+            limit(40)
+          );
+          
+          const dbPromise = getDocs(qPrompts);
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("Firebase Firestore 'prompts' connection timeout limit exceeded.")), 2000)
+          );
+          
+          const querySnapshot = await Promise.race([dbPromise, timeoutPromise]) as any;
+          const docsCount = querySnapshot.docs.length;
+          if (docsCount < 40) {
+            setHasMorePrompts(false);
+          }
+          if (docsCount > 0) {
+            setLastVisibleDoc(querySnapshot.docs[docsCount - 1]);
+          }
+          
+          querySnapshot.forEach((doc: any) => {
+            const data = doc.data();
+            const taglineFallback = data.tagline || (data.raw_prompt ? (data.raw_prompt.substring(0, 110) + "...") : "Industrial-grade prompt asset.");
+            const imageUrlFallback = data.image_url || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600";
             
-            // Map standard Prompt fields to ensure downstream components operate perfectly
-            description: taglineFallback,
-            fullPrompt: data.raw_prompt || "",
-            category: data.classification || "AI Prompt",
-            platform: data.engine_category || "General",
-            tags: data.search_tags || ["AI", "Creative"],
-            coverImage: imageUrlFallback,
-            videoDemo: data.video_link || "https://youtube.com",
-            views: data.total_views || 0,
-            likes: data.total_likes || 0,
-            shares: data.total_shares || 0,
-            copyCount: data.total_copies || 0,
-            published: data.is_published !== false,
-            featured: data.is_featured === true,
-            createdAt: data.created_at || new Date().toISOString()
+            const isPub = data.is_published === true;
+            
+            if (!seenIds.has(doc.id)) {
+              seenIds.add(doc.id);
+              list.push({
+                id: doc.id,
+                title: data.title || "Untitled Prompt",
+                tagline: taglineFallback,
+                raw_prompt: data.raw_prompt || data.prompt || "",
+                engine_category: data.engine_category || data.category || "General",
+                classification: data.classification || data.category || "AI Prompt",
+                search_tags: data.search_tags || (data.keywords ? data.keywords.split(",").map((k: string) => k.trim()) : ["AI", "Creative"]),
+                image_url: imageUrlFallback,
+                video_link: data.video_link || data.videoDemo || "https://youtube.com",
+                total_views: data.total_views || data.views || 0,
+                total_likes: data.total_likes || data.likes || 0,
+                total_shares: data.total_shares || data.shares || 0,
+                
+                description: taglineFallback,
+                fullPrompt: data.raw_prompt || data.prompt || "",
+                category: data.classification || data.category || "AI Prompt",
+                platform: data.engine_category || data.category || "General",
+                tags: data.search_tags || (data.keywords ? data.keywords.split(",").map((k: string) => k.trim()) : ["AI", "Creative"]),
+                coverImage: imageUrlFallback,
+                videoDemo: data.video_link || data.videoDemo || "https://youtube.com",
+                views: data.total_views || data.views || 0,
+                likes: data.total_likes || data.likes || 0,
+                shares: data.total_shares || data.shares || 0,
+                copyCount: data.total_copies || data.copyCount || 0,
+                published: isPub,
+                is_published: isPub,
+                featured: data.is_featured === true || data.featured === true,
+                createdAt: data.created_at || data.createdAt || new Date().toISOString()
+              });
+            }
           });
-        });
+        } catch (promptsErr: any) {
+          console.warn("[Firestore Recovery] Firestore 'prompts' disconnected or unconfigured. Loading local database assets instead:", promptsErr.message);
+          try {
+            const apiRes = await fetch("/api/data");
+            const apiData = await apiRes.json();
+            const localPrompts = apiData.prompts || [];
+            localPrompts.forEach((p: any) => {
+              if (!seenIds.has(p.id)) {
+                seenIds.add(p.id);
+                list.push({
+                  id: p.id,
+                  title: p.title,
+                  tagline: p.tagline || p.description,
+                  raw_prompt: p.raw_prompt || p.fullPrompt,
+                  engine_category: p.engine_category || p.category,
+                  classification: p.classification || p.category,
+                  search_tags: p.search_tags || p.tags || [],
+                  image_url: p.image_url || p.coverImage,
+                  video_link: p.video_link || p.videoDemo,
+                  total_views: p.total_views || p.views || 0,
+                  total_likes: p.total_likes || p.likes || 0,
+                  total_shares: p.total_shares || p.shares || 0,
+                  description: p.description || p.tagline,
+                  fullPrompt: p.fullPrompt || p.raw_prompt,
+                  category: p.category || p.classification,
+                  platform: p.platform || p.engine_category,
+                  tags: p.tags || p.search_tags || [],
+                  coverImage: p.coverImage || p.image_url,
+                  videoDemo: p.videoDemo || p.video_link,
+                  views: p.views || p.total_views || 0,
+                  likes: p.likes || p.total_likes || 0,
+                  shares: p.shares || p.total_shares || 0,
+                  copyCount: p.copyCount || p.total_copies || 0,
+                  published: p.published !== false && p.is_published !== false,
+                  is_published: p.published !== false && p.is_published !== false,
+                  featured: p.featured === true,
+                  createdAt: p.createdAt || p.created_at || new Date().toISOString()
+                });
+              }
+            });
+          } catch (localErr) {
+            console.warn("[Local Fallback Err] Offline rest lookup failed too:", localErr);
+          }
+        }
+
+        // 2. Fetch from "prompt_drafts" collection
+        try {
+          const qDrafts = query(
+            collection(db, "prompt_drafts"),
+            orderBy("createdAt", "desc"),
+            limit(40)
+          );
+          
+          const dbPromise = getDocs(qDrafts);
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("Firebase Firestore 'prompt_drafts' connection timeout limit exceeded.")), 2000)
+          );
+          
+          const querySnapshot = await Promise.race([dbPromise, timeoutPromise]) as any;
+          querySnapshot.forEach((doc: any) => {
+            const data = doc.data();
+            const taglineFallback = data.description || (data.prompt ? (data.prompt.substring(0, 110) + "...") : "Industrial-grade prompt asset.");
+            const imageUrlFallback = data.imageUrl || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600";
+            
+            const isPub = data.is_published === true;
+            
+            if (!seenIds.has(doc.id)) {
+              seenIds.add(doc.id);
+              list.push({
+                id: doc.id,
+                title: data.title || "Untitled Draft Prompt",
+                tagline: taglineFallback,
+                raw_prompt: data.prompt || data.raw_prompt || "",
+                engine_category: data.category || data.engine_category || "General",
+                classification: data.category || data.classification || "AI Prompt",
+                search_tags: data.keywords ? data.keywords.split(",").map((k: string) => k.trim()) : (data.search_tags || ["AI", "Creative"]),
+                image_url: imageUrlFallback,
+                video_link: data.video_link || "https://youtube.com",
+                total_views: data.trendScore || 0,
+                total_likes: data.qualityScore || 0,
+                total_shares: 0,
+                
+                description: taglineFallback,
+                fullPrompt: data.prompt || data.raw_prompt || "",
+                category: data.category || data.classification || "AI Prompt",
+                platform: data.category || data.engine_category || "General",
+                tags: data.keywords ? data.keywords.split(",").map((k: string) => k.trim()) : (data.search_tags || ["AI", "Creative"]),
+                coverImage: imageUrlFallback,
+                videoDemo: "https://youtube.com",
+                views: data.trendScore || 0,
+                likes: data.qualityScore || 0,
+                shares: 0,
+                copyCount: 0,
+                published: isPub,
+                is_published: isPub,
+                featured: (data.trendScore && data.trendScore > 80) ? true : false,
+                createdAt: data.createdAt || data.created_at || new Date().toISOString()
+              });
+            }
+          });
+        } catch (draftsErr: any) {
+          console.warn("[Firestore Recovery] Firestore 'prompt_drafts' disconnected or unconfigured. Loading backup draft templates:", draftsErr.message);
+          try {
+            const draftRes = await fetch(`/api/prompts?token=${adminToken || 'admin_token_default'}`);
+            if (draftRes.ok) {
+              const localDrafts = await draftRes.json();
+              localDrafts.forEach((d: any) => {
+                if (!seenIds.has(d.id || d.slug)) {
+                  seenIds.add(d.id || d.slug);
+                  list.push({
+                    id: d.id || d.slug,
+                    title: d.title,
+                    tagline: d.description || d.tagline,
+                    raw_prompt: d.prompt || d.raw_prompt,
+                    engine_category: d.category || d.engine_category,
+                    classification: d.category || d.classification,
+                    search_tags: d.keywords ? d.keywords.split(",") : [],
+                    image_url: d.imageUrl || d.imagePrompt,
+                    video_link: "https://youtube.com",
+                    total_views: d.trendScore || 0,
+                    total_likes: d.qualityScore || 0,
+                    total_shares: 0,
+                    description: d.description,
+                    fullPrompt: d.prompt,
+                    category: d.category,
+                    platform: d.category,
+                    tags: d.keywords ? d.keywords.split(",") : [],
+                    coverImage: d.imageUrl || d.imagePrompt,
+                    videoDemo: "https://youtube.com",
+                    views: d.trendScore || 0,
+                    likes: d.qualityScore || 0,
+                    shares: 0,
+                    copyCount: 0,
+                    published: d.status === "published",
+                    is_published: d.status === "published",
+                    featured: false,
+                    createdAt: d.createdAt || new Date().toISOString()
+                  });
+                }
+              });
+            }
+          } catch (e) {
+            console.warn("[Local Fallback Err] Fail fetching local drafts backup:", e);
+          }
+        }
+
         setPromptsList(list);
-      } catch (err) {
-        console.log("Note: Firestore catalog load offline fallback initialized.");
+      } catch (err: any) {
+        console.error("Firestore catalog loading error:", err);
+        try {
+          handleFirestoreError(err, OperationType.LIST, "prompts_combined");
+        } catch (e) {}
       } finally {
         setIsPromptsListLoading(false);
       }
     }
     fetchFirebasePrompts();
-  }, []);
+  }, [adminToken]);
+
+  // IntersectionObserver to trigger next page fetches for infinite scroll performance
+  const observerTarget = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const currentTarget = observerTarget.current;
+    if (!currentTarget) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isPromptsListLoading && hasMorePrompts) {
+          fetchMoreFirebasePrompts();
+        }
+      },
+      { threshold: 0.1, rootMargin: "300px" }
+    );
+
+    observer.observe(currentTarget);
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [observerTarget, isPromptsListLoading, hasMorePrompts, lastVisibleDoc]);
 
   useEffect(() => {
     fetchAllData();
@@ -372,7 +691,15 @@ export default function App() {
 
     // Listen to hash routes to enable secret direct /admin loading if required
     const handleHash = () => {
-      if (window.location.hash === "#admin" || window.location.pathname === "/admin") {
+      const path = window.location.pathname;
+      const hash = window.location.hash;
+      if (
+        hash === "#admin" || 
+        hash.startsWith("#admin/") ||
+        hash === "#admin-drafts" ||
+        path === "/admin" ||
+        path.startsWith("/admin/")
+      ) {
         setActiveTab("admin");
       }
     };
@@ -601,37 +928,101 @@ export default function App() {
     }
   };
 
-  // Handle direct file media assets uploads (base64 serializer)
+  // Handle direct file media assets uploads with HTML5 canvas micro image compression
   const handleMediaUpload = async (file: File): Promise<string | null> => {
     if (!adminToken) return null;
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = async () => {
-        const base64Content = (reader.result as string).split(",")[1];
-        try {
-          const res = await fetch("/api/admin/upload", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              base64Data: base64Content,
-              fileName: file.name,
-              mimeType: file.type,
-              token: adminToken
-            })
-          });
-          if (res.ok) {
-            const data = await res.json();
-            resolve(data.fileUrl);
-          } else {
-            resolve(null);
-          }
-        } catch {
-          resolve(null);
+    
+    const compressImageToBlob = (imageFile: File): Promise<Blob> => {
+      return new Promise((resolve, reject) => {
+        if (!imageFile.type.startsWith("image/")) {
+          resolve(imageFile);
+          return;
         }
-      };
-      reader.onerror = () => resolve(null);
-    });
+
+        const img = new Image();
+        img.src = URL.createObjectURL(imageFile);
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const maxDim = 1200;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const mimeType = imageFile.type === "image/png" ? "image/png" : "image/jpeg";
+            canvas.toBlob((blob) => {
+              if (blob) {
+                resolve(blob);
+              } else {
+                resolve(imageFile);
+              }
+            }, mimeType, 0.75);
+          } else {
+            resolve(imageFile);
+          }
+          URL.revokeObjectURL(img.src);
+        };
+        img.onerror = reject;
+      });
+    };
+
+    try {
+      const dbBlob = await compressImageToBlob(file);
+      const storageInstance = getStorage(app);
+      const ext = file.name.endsWith(".png") ? "png" : "jpg";
+      const cleanedName = file.name.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9]/g, "-");
+      const uniqueName = `media-${Date.now()}-${cleanedName}.${ext}`;
+      const storageRef = ref(storageInstance, `prompts/${uniqueName}`);
+      
+      const snapshot = await uploadBytes(storageRef, dbBlob, {
+        contentType: file.type.startsWith("image/") ? (file.type === "image/png" ? "image/png" : "image/jpeg") : file.type,
+        cacheControl: "public,max-age=31536000,stale-while-revalidate=86400"
+      });
+      const downloadUrl = await getDownloadURL(snapshot.ref);
+      return downloadUrl;
+    } catch (err) {
+      console.error("Firebase Storage upload error, falling back to local server upload: ", err);
+      // Fallback to local server upload if storage fails (e.g., config error or rules)
+      try {
+        const reader = new FileReader();
+        const base64Content = await new Promise<string>((resolve, reject) => {
+          reader.readAsDataURL(file);
+          reader.onload = () => resolve((reader.result as string).split(",")[1]);
+          reader.onerror = reject;
+        });
+        const res = await fetch("/api/admin/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            base64Data: base64Content,
+            fileName: file.name.endsWith(".png") ? file.name : file.name.replace(/\.[^/.]+$/, "") + ".jpg",
+            mimeType: file.type.startsWith("image/") ? (file.type === "image/png" ? "image/png" : "image/jpeg") : file.type,
+            token: adminToken
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          return data.fileUrl;
+        }
+      } catch (fallbackErr) {
+        console.error("Local fallback upload failed as well:", fallbackErr);
+      }
+      return null;
+    }
   };
 
   // Interactive copying action controllers
@@ -789,7 +1180,7 @@ export default function App() {
   // Dynamic filter lists for prompts catalog rendering
   const filteredPrompts = promptsList.filter(p => {
     // Hide drafts from guests; let admin see drafts instantly
-    if (!p.published && !adminToken) return false;
+    if (!p.is_published && !adminToken) return false;
 
     const titleStr = p.title ? p.title.toLowerCase() : "";
     const descStr = p.description ? p.description.toLowerCase() : "";
@@ -837,13 +1228,28 @@ export default function App() {
     return list.filter(p => likedPrompts.includes(p.id));
   }, [promptsList, prompts, likedPrompts]);
 
+  // Resolve prompts to display in latest section
+  const latestPromptsToDisplay = React.useMemo(() => {
+    const publishedList = promptsList.filter(p => p.is_published);
+    if (publishedList.length > 0) {
+      return adminToken ? promptsList : publishedList;
+    } else {
+      // If no published prompts exist, automatically show draft prompts to the admin only
+      if (adminToken) {
+        return promptsList;
+      } else {
+        return [];
+      }
+    }
+  }, [promptsList, adminToken]);
+
   // Unique categories list across active catalog
   const availableCategories = Array.from(new Set(prompts.filter(p => p.category).map(p => p.category)));
 
   // Helpers for counting prompt available results matching query
   const getPlatformCount = (platform: string) => {
     return prompts.filter(p => {
-      if (!p.published && !adminToken) return false;
+      if (!p.is_published && !adminToken) return false;
 
       // 1. Match search query
       const titleStr = p.title ? p.title.toLowerCase() : "";
@@ -880,7 +1286,7 @@ export default function App() {
 
   const getCategoryCount = (category: string) => {
     return prompts.filter(p => {
-      if (!p.published && !adminToken) return false;
+      if (!p.is_published && !adminToken) return false;
 
       // 1. Match search query
       const titleStr = p.title ? p.title.toLowerCase() : "";
@@ -1009,7 +1415,7 @@ export default function App() {
             ) : (
               <>
                 {/* 1. FEATURED PROMPTS SECTION */}
-                {prompts.filter(p => p.featured && (p.published || adminToken)).length > 0 && (
+                {prompts.filter(p => p.featured && (p.is_published || adminToken)).length > 0 && (
                   <div className="space-y-6 animate-fadeIn">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-violet-500/10 pb-4">
                       <div>
@@ -1035,16 +1441,17 @@ export default function App() {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                       {promptsList
-                        .filter(p => p.featured && (p.published || adminToken))
+                        .filter(p => p.featured && (p.is_published || adminToken))
                         .sort((a, b) => {
                           const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
                           const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
                           return tB - tA;
                         })
-                        .map((p) => (
+                        .map((p, index) => (
                           <PromptCard
                             key={p.id}
                             prompt={p}
+                            isPriority={index < 3}
                             onClick={() => handleSelectPrompt(p)}
                             onCopyDirect={handleCopyPromptDirect}
                             onLikeDirect={handleLikePromptDirect}
@@ -1088,16 +1495,45 @@ export default function App() {
                       <PromptCardSkeleton />
                       <PromptCardSkeleton />
                     </div>
-                  ) : promptsList.length === 0 ? (
-                    <div className="p-12 text-center rounded-2xl border border-dashed border-violet-500/10">
-                      <p className="text-gray-400 font-sans text-sm">No live prompts currently published to Firebase.</p>
-                    </div>
+                  ) : latestPromptsToDisplay.length === 0 ? (
+                    adminToken ? (
+                      <div className="p-12 text-center rounded-2xl border border-dashed border-cyan-500/20 bg-slate-900/40 max-w-2xl mx-auto flex flex-col items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-violet-950 flex items-center justify-center border border-violet-500/30 text-violet-400">
+                          <Lock className="w-6 h-6 animate-pulse" />
+                        </div>
+                        <div>
+                          <h4 className="text-white font-semibold text-base font-sans">Showing Workspace Drafts Only</h4>
+                          <p className="text-gray-400 font-sans text-xs mt-1 leading-relaxed">
+                            No live published prompts exist in your Firestore database collections. Only draft prompts are displayed inside this admin session.
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setActiveTab("admin")}
+                          className="mt-2 bg-gradient-to-r from-cyan-500 to-violet-500 hover:opacity-90 text-white font-sans text-xs font-semibold px-4 py-2 rounded-xl transition duration-300 shadow-md cursor-pointer"
+                        >
+                          Publish a Prompt Now
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="p-12 text-center rounded-2xl border border-dashed border-violet-500/10 bg-slate-900/40 max-w-2xl mx-auto flex flex-col items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-cyan-950 flex items-center justify-center border border-cyan-500/30 text-cyan-400">
+                          <Sparkles className="w-6 h-6 animate-pulse" />
+                        </div>
+                        <div>
+                          <h4 className="text-white font-semibold text-base font-sans">Curated Prompts Incoming</h4>
+                          <p className="text-gray-400 font-sans text-xs mt-1 leading-relaxed">
+                            Our team is currently preparing the next release of curated prompt engineering assets. Check back soon for beautiful prompt updates!
+                          </p>
+                        </div>
+                      </div>
+                    )
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                      {promptsList.map((prompt) => (
+                      {latestPromptsToDisplay.map((prompt, index) => (
                         <PromptCard
                           key={prompt.id}
                           prompt={prompt}
+                          isPriority={index < 3}
                           onClick={() => handleSelectPrompt(prompt)}
                           onCopyDirect={handleCopyPromptDirect}
                           onLikeDirect={handleLikePromptDirect}
@@ -1114,7 +1550,7 @@ export default function App() {
                 {safeSettings.homepageSections && safeSettings.homepageSections.filter(s => s.enabled).map((section) => {
                   // Get prompts corresponding to sections
                   let promptList: Prompt[] = [];
-                  const activePrompts = promptsList.filter(p => p.published || adminToken);
+                  const activePrompts = promptsList.filter(p => p.is_published || adminToken);
                   if (section.type === "trending") {
                     promptList = [...activePrompts].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 3);
                   } else if (section.type === "latest") {
@@ -1140,10 +1576,11 @@ export default function App() {
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        {promptList.map((p) => (
+                        {promptList.map((p, index) => (
                           <PromptCard
                             key={p.id}
                             prompt={p}
+                            isPriority={index < 3}
                             onClick={() => handleSelectPrompt(p)}
                             onCopyDirect={handleCopyPromptDirect}
                             onLikeDirect={handleLikePromptDirect}
@@ -1350,20 +1787,38 @@ export default function App() {
                       </button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                      {sortedPrompts.map((p) => (
-                        <PromptCard
-                          key={p.id}
-                          prompt={p}
-                          onClick={() => handleSelectPrompt(p)}
-                          onCopyDirect={handleCopyPromptDirect}
-                          onLikeDirect={handleLikePromptDirect}
-                          copiedId={copiedId}
-                          isComparing={compareList.some(comp => comp.id === p.id)}
-                          onToggleCompare={handleToggleCompare}
-                        />
-                      ))}
-                    </div>
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        {sortedPrompts.map((p, index) => (
+                          <PromptCard
+                            key={p.id}
+                            prompt={p}
+                            isPriority={index < 3}
+                            onClick={() => handleSelectPrompt(p)}
+                            onCopyDirect={handleCopyPromptDirect}
+                            onLikeDirect={handleLikePromptDirect}
+                            copiedId={copiedId}
+                            isComparing={compareList.some(comp => comp.id === p.id)}
+                            onToggleCompare={handleToggleCompare}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Infinite Scroll pagination anchor points */}
+                      <div ref={observerTarget} className="py-12 flex flex-col items-center justify-center text-center gap-2">
+                        {isPromptsListLoading && (
+                          <div className="flex items-center gap-2 text-xs text-cyan-400 font-mono animate-pulse">
+                            <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
+                            <span>SYNCHRONIZING FIRESTORE DATASETS...</span>
+                          </div>
+                        )}
+                        {!hasMorePrompts && sortedPrompts.length > 0 && (
+                          <div className="bg-slate-900/40 border border-violet-500/5 rounded-xl px-4 py-2 text-[10px] font-mono text-slate-500 uppercase tracking-widest mt-4">
+                            🔒 END OF SYSTEMS PIPELINE. ALL DATA BLOCKS RETRIEVED.
+                          </div>
+                        )}
+                      </div>
+                    </>
                   )}
                 </motion.div>
               </AnimatePresence>
@@ -1411,12 +1866,19 @@ export default function App() {
               </div>
             </div>
           ) : (
-            <GuideSection
-              guides={guides}
-              prompts={prompts}
-              onSelectPrompt={handleSelectPromptFromGuide}
-              onTrackAction={trackEvent}
-            />
+            <React.Suspense fallback={
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <GuideCardSkeleton />
+                <GuideCardSkeleton />
+              </div>
+            }>
+              <GuideSection
+                guides={guides}
+                prompts={prompts}
+                onSelectPrompt={handleSelectPromptFromGuide}
+                onTrackAction={trackEvent}
+              />
+            </React.Suspense>
           )}
         </div>
       )}
@@ -1538,7 +2000,7 @@ export default function App() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               <AnimatePresence>
-                {favoritedPrompts.map((p) => (
+                {favoritedPrompts.map((p, index) => (
                   <motion.div
                     key={p.id}
                     layout
@@ -1549,6 +2011,7 @@ export default function App() {
                   >
                     <PromptCard
                       prompt={p}
+                      isPriority={index < 3}
                       onClick={() => handleSelectPrompt(p)}
                       onCopyDirect={handleCopyPromptDirect}
                       onLikeDirect={handleLikePromptDirect}
@@ -1579,7 +2042,7 @@ export default function App() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {DEFAULT_CATEGORIES.map(category => {
-              const matchedCount = prompts.filter(p => p.category === category && (p.published || adminToken)).length;
+              const matchedCount = prompts.filter(p => p.category === category && (p.is_published || adminToken)).length;
               return (
                 <div
                   id={`cat-matrix-card-${category.replace(/\s+/g, '-').toLowerCase()}`}
@@ -1623,10 +2086,11 @@ export default function App() {
             {[...prompts]
               .sort((a, b) => b.views - a.views)
               .slice(0, 6)
-              .map((p) => (
+              .map((p, index) => (
                 <PromptCard
                   key={p.id}
                   prompt={p}
+                  isPriority={index < 3}
                   onClick={() => handleSelectPrompt(p)}
                   onCopyDirect={handleCopyPromptDirect}
                   onLikeDirect={handleLikePromptDirect}
@@ -1642,66 +2106,92 @@ export default function App() {
       {/* --- ADMIN DASHBOARD PAGE --- */}
       {activeTab === "admin" && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-24 animate-fadeIn">
-          <AdminPanel
-            prompts={prompts}
-            guides={guides}
-            watchPrompts={watchPrompts}
-            settings={safeSettings}
-            analytics={safeAnalytics}
-            token={adminToken}
-            onLogin={handleAdminAuth}
-            onUpdateSettings={handleUpdateSettings}
-            onSavePrompt={handleSavePrompt}
-            onDeletePrompt={handleDeletePrompt}
-            onSaveGuide={handleSaveGuide}
-            onDeleteGuide={handleDeleteGuide}
-            onSaveWatchPrompt={handleSaveWatchPrompt}
-            onDeleteWatchPrompt={handleDeleteWatchPrompt}
-            onUploadMedia={handleMediaUpload}
-          />
+          <React.Suspense fallback={
+            <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3 text-slate-400 font-sans text-sm">
+              <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+              <span>Initializing secure Admin panel modules...</span>
+            </div>
+          }>
+            <AdminPanel
+              prompts={prompts}
+              guides={guides}
+              watchPrompts={watchPrompts}
+              settings={safeSettings}
+              analytics={safeAnalytics}
+              token={adminToken}
+              onLogin={handleAdminAuth}
+              onUpdateSettings={handleUpdateSettings}
+              onSavePrompt={handleSavePrompt}
+              onDeletePrompt={handleDeletePrompt}
+              onSaveGuide={handleSaveGuide}
+              onDeleteGuide={handleDeleteGuide}
+              onSaveWatchPrompt={handleSaveWatchPrompt}
+              onDeleteWatchPrompt={handleDeleteWatchPrompt}
+              onUploadMedia={handleMediaUpload}
+            />
+          </React.Suspense>
         </div>
       )}
 
       {/* --- MAPPED LEGAL COMPLIANCE SECTIONS --- */}
       {["about", "privacy", "terms", "disclaimer", "contact_page"].includes(activeTab) && (
         <div className="pt-20 pb-20">
-          <CompliancePages
-            section={activeTab as any}
-            setTab={setActiveTab}
-            triggerNotification={triggerToast}
-          />
+          <React.Suspense fallback={
+            <div className="min-h-[30vh] flex items-center justify-center gap-2 text-slate-400">
+              <Loader2 className="w-6 h-6 text-violet-500 animate-spin" />
+              <span>Formatting legal disclosures...</span>
+            </div>
+          }>
+            <CompliancePages
+              section={activeTab as any}
+              setTab={setActiveTab}
+              triggerNotification={triggerToast}
+            />
+          </React.Suspense>
         </div>
       )}
 
       {/* --- IMMERSIVE OVERLAY: PROMPT MODAL --- */}
       {selectedPrompt && (
-        <PromptDetailsModal
-          prompt={selectedPrompt}
-          onClose={() => {
-            setSelectedPrompt(null);
-            // Restore clean home state path
-            if (window.location.pathname !== "/") {
-              window.history.pushState(null, "", "/");
-            }
-          }}
-          onCopyDirect={handleCopyPromptText}
-          onLikeDirect={handleLikePromptText}
-          onShareDirect={handleSharePromptText}
-          copiedId={copiedId}
-          onToggleCompare={handleToggleCompare}
-          compareList={compareList}
-          onOpenCompare={() => setShowCompareModal(true)}
-        />
+        <React.Suspense fallback={
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center">
+            <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+          </div>
+        }>
+          <PromptDetailsModal
+            prompt={selectedPrompt}
+            onClose={() => {
+              setSelectedPrompt(null);
+              // Restore clean home state path
+              if (window.location.pathname !== "/") {
+                window.history.pushState(null, "", "/");
+              }
+            }}
+            onCopyDirect={handleCopyPromptText}
+            onLikeDirect={handleLikePromptText}
+            onShareDirect={handleSharePromptText}
+            copiedId={copiedId}
+            onToggleCompare={handleToggleCompare}
+            compareList={compareList}
+            onOpenCompare={() => setShowCompareModal(true)}
+          />
+        </React.Suspense>
       )}
 
       {/* --- IMMERSIVE OVERLAY: PROMPT COMPARE MODAL --- */}
       {showCompareModal && compareList.length === 2 && (
-        <PromptCompareModal
-          promptA={compareList[0]}
-          promptB={compareList[1]}
-          onClose={() => setShowCompareModal(false)}
-          onClearCompare={() => setCompareList([])}
-        />
+        <React.Suspense fallback={
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center">
+            <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+          </div>
+        }>
+          <PromptCompareModal
+            promptA={compareList[0]}
+            promptB={compareList[1]}
+            onClose={() => setShowCompareModal(false)}
+            onClearCompare={() => setCompareList([])}
+          />
+        </React.Suspense>
       )}
 
       {/* --- Floating Compare selection helper banner --- */}
@@ -1762,23 +2252,30 @@ export default function App() {
             >
               <X className="w-4 h-4" />
             </button>
-            <AdminPanel
-              prompts={prompts}
-              guides={guides}
-              watchPrompts={watchPrompts}
-              settings={safeSettings}
-              analytics={safeAnalytics}
-              token={adminToken}
-              onLogin={handleAdminAuth}
-              onUpdateSettings={handleUpdateSettings}
-              onSavePrompt={handleSavePrompt}
-              onDeletePrompt={handleDeletePrompt}
-              onSaveGuide={handleSaveGuide}
-              onDeleteGuide={handleDeleteGuide}
-              onSaveWatchPrompt={handleSaveWatchPrompt}
-              onDeleteWatchPrompt={handleDeleteWatchPrompt}
-              onUploadMedia={handleMediaUpload}
-            />
+            <React.Suspense fallback={
+              <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-400">
+                <Loader2 className="w-6 h-6 text-cyan-400 animate-spin" />
+                <span className="text-xs">Connecting auth secure module...</span>
+              </div>
+            }>
+              <AdminPanel
+                prompts={prompts}
+                guides={guides}
+                watchPrompts={watchPrompts}
+                settings={safeSettings}
+                analytics={safeAnalytics}
+                token={adminToken}
+                onLogin={handleAdminAuth}
+                onUpdateSettings={handleUpdateSettings}
+                onSavePrompt={handleSavePrompt}
+                onDeletePrompt={handleDeletePrompt}
+                onSaveGuide={handleSaveGuide}
+                onDeleteGuide={handleDeleteGuide}
+                onSaveWatchPrompt={handleSaveWatchPrompt}
+                onDeleteWatchPrompt={handleDeleteWatchPrompt}
+                onUploadMedia={handleMediaUpload}
+              />
+            </React.Suspense>
           </div>
         </div>
       )}

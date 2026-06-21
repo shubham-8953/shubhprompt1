@@ -1,3 +1,26 @@
+export interface PromptDraft {
+  id?: string;
+  title: string;
+  slug: string;
+  prompt: string;
+  negativePrompt?: string;
+  description: string;
+  blog: string;
+  seoTitle: string;
+  seoDescription: string;
+  keywords: string;
+  category: string;
+  thumbnailPrompt: string;
+  imagePrompt: string;
+  imageUrl: string;
+  trendScore: number;
+  qualityScore: number;
+  status: 'draft' | 'published' | 'rejected';
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string | null;
+}
+
 export interface Prompt {
   id: string;
   title: string;
@@ -16,6 +39,7 @@ export interface Prompt {
   shares: number;
   copyCount: number;
   published: boolean;
+  is_published?: boolean;
   featured?: boolean;
   
   // Dynamic Firestore schema fields

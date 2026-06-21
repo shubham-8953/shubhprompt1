@@ -1,0 +1,37 @@
+{
+  "entities": {
+    "PromptDraft": {
+      "title": "PromptDraft",
+      "description": "An AI-engineered prompt asset in intermediate draft stages",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "slug": { "type": "string" },
+        "prompt": { "type": "string" },
+        "negativePrompt": { "type": "string" },
+        "description": { "type": "string" },
+        "blog": { "type": "string" },
+        "seoTitle": { "type": "string" },
+        "seoDescription": { "type": "string" },
+        "keywords": { "type": "string" },
+        "category": { "type": "string" },
+        "thumbnailPrompt": { "type": "string" },
+        "imagePrompt": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "trendScore": { "type": "number" },
+        "qualityScore": { "type": "number" },
+        "status": { "type": "string", "enum": ["draft", "published", "rejected"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "publishedAt": { "type": "string" }
+      },
+      "required": ["title", "slug", "prompt", "description", "status", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/prompt_drafts/{draftId}": {
+      "schema": "PromptDraft",
+      "description": "Collection hosting the full lifecycle of AI generated drafts, including editorial and publishing pipeline"
+    }
+  }
+}

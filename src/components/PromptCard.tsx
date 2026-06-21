@@ -1,6 +1,6 @@
 import React from "react";
 import { Prompt } from "../types";
-import { Eye, Copy, Check, Heart, Share2, Sparkles, ExternalLink, Youtube, Columns } from "lucide-react";
+import { Eye, Copy, Check, Heart, Share2, Sparkles, Columns } from "lucide-react";
 import { OriginalYoutubeLogo } from "./OriginalYoutubeLogo";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -13,16 +13,46 @@ interface PromptCardProps {
   copiedId: string | null;
   isComparing?: boolean;
   onToggleCompare?: (prompt: Prompt) => void;
+  isPriority?: boolean;
 }
 
-export default function PromptCard({
+// Optimized CDN transformer for webp and compressions
+function getOptimizedImageUrl(url?: string, width = 600) {
+  const defaultFallback = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe";
+  const targetUrl = url || defaultFallback;
+  
+  if (targetUrl.includes("images.unsplash.com")) {
+    const urlParts = targetUrl.split("?");
+    const baseUrl = urlParts[0];
+    const params = new URLSearchParams(urlParts[1] || "");
+    params.set("auto", "format");
+    params.set("fm", "webp");
+    params.set("fit", "crop");
+    params.set("w", width.toString());
+    params.set("q", "75");
+    return `${baseUrl}?${params.toString()}`;
+  }
+  return targetUrl;
+}
+
+// Build a responsive srcSet for CDN/Unsplash images
+function getSrcSet(url?: string) {
+  if (!url) return undefined;
+  if (url.includes("images.unsplash.com")) {
+    return `${getOptimizedImageUrl(url, 300)} 300w, ${getOptimizedImageUrl(url, 600)} 600w, ${getOptimizedImageUrl(url, 900)} 900w`;
+  }
+  return undefined;
+}
+
+function PromptCardComponent({
   prompt,
   onClick,
   onCopyDirect,
   onLikeDirect,
   copiedId,
   isComparing = false,
-  onToggleCompare
+  onToggleCompare,
+  isPriority = false
 }: PromptCardProps) {
   // Determine gradient badges based on platform
   const getBadgeStyle = (platform: string) => {
@@ -48,6 +78,7 @@ export default function PromptCard({
   };
 
   const [localCopied, setLocalCopied] = React.useState(false);
+  const [imageLoaded, setImageLoaded] = React.useState(false);
 
   React.useEffect(() => {
     if (copiedId === prompt.id) {
@@ -62,6 +93,25 @@ export default function PromptCard({
   }, [copiedId, prompt.id]);
 
   const isCopied = copiedId === prompt.id;
+  const optimizedUrl = getOptimizedImageUrl(prompt.coverImage || prompt.image_url, 600);
+
+  React.useEffect(() => {
+    if (isPriority && optimizedUrl) {
+      const link = document.createElement("link");
+      link.rel = "preload";
+      link.as = "image";
+      link.href = optimizedUrl;
+      const srcSet = getSrcSet(prompt.coverImage || prompt.image_url);
+      if (srcSet) {
+        link.setAttribute("imagesrcset", srcSet);
+        link.setAttribute("imagesizes", "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw");
+      }
+      document.head.appendChild(link);
+      return () => {
+        document.head.removeChild(link);
+      };
+    }
+  }, [isPriority, optimizedUrl, prompt.coverImage, prompt.image_url]);
 
   return (
     <div
@@ -72,7 +122,7 @@ export default function PromptCard({
       }`}
     >
       {/* Visual Accent glow */}
-      <div className="absolute -inset-px bg-gradient-to-r from-violet-600 to-cyan-500 rounded-2xl opacity-0 group-hover:opacity-20 transition duration-300" />
+      <div className="absolute -inset-px bg-gradient-to-r from-violet-600 to-cyan-500 rounded-2xl opacity-0 group-hover:opacity-20 transition duration-300 pointer-events-none" />
 
       {/* Copy Success Overlay */}
       <AnimatePresence>
@@ -107,19 +157,32 @@ export default function PromptCard({
       </AnimatePresence>
 
       {/* Main image / thumbnail container */}
-      <div className="relative h-44 overflow-hidden bg-slate-950">
+      <div className="relative h-44 overflow-hidden bg-[#131b2c] flex items-center justify-center">
+        {/* Low-Res Blurred CSS placeholder while image is fully loading */}
+        {!imageLoaded && (
+          <div className="absolute inset-0 bg-[#1e293b] flex flex-col items-center justify-center animate-pulse">
+            <div className="w-8 h-8 rounded-full border-2 border-cyan-500/10 border-t-cyan-400 animate-spin mb-1.5" />
+            <div className="text-[9px] font-mono font-bold tracking-widest text-[#94A3B8] uppercase">WEBP OPTIMIZED</div>
+          </div>
+        )}
+        
         <img
-          src={prompt.coverImage || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600"}
+          src={optimizedUrl}
+          srcSet={getSrcSet(prompt.coverImage || prompt.image_url)}
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           alt={prompt.title}
           referrerPolicy="no-referrer"
-          loading="lazy"
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          loading={isPriority ? "eager" : "lazy"}
+          onLoad={() => setImageLoaded(true)}
+          className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 ${
+            imageLoaded ? "blur-0 scale-100 opacity-100" : "blur-lg scale-110 opacity-30"
+          }`}
         />
         {/* Soft blackout cover vignette */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#24324A] via-[#24324A]/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#24324A] via-[#24324A]/20 to-transparent pointer-events-none" />
 
         {/* Float tags & badges */}
-        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[90%]">
+        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[90%] pointer-events-none">
           <span className={`px-2.5 py-1 rounded-md text-[10px] font-mono font-bold tracking-wide uppercase bg-gradient-to-r border ${getBadgeStyle(prompt.platform)} shadow-lg`}>
             {prompt.platform}
           </span>
@@ -221,7 +284,7 @@ export default function PromptCard({
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="p-2 rounded-lg bg-red-650/10 hover:bg-red-600/25 border border-red-500/10 hover:border-red-500/30 transition-all cursor-pointer flex items-center justify-center"
+              className="p-2 rounded-lg bg-red-650/10 hover:bg-red-600/25 border border-red-500/10 hover:border-red-500/30 transition-all cursor-pointer flex items-center justify-center text-red-400"
               title="How to Use Shubh Prompt"
             >
               <OriginalYoutubeLogo className="w-4 h-3.5" />
@@ -230,7 +293,7 @@ export default function PromptCard({
             <button
               id={`quick-copy-btn-${prompt.id}`}
               onClick={(e) => onCopyDirect(e, prompt)}
-              className={`relative overflow-hidden p-2 rounded-lg text-xs font-mono font-medium transition-all duration-300 flex items-center justify-center gap-1 min-w-[78px] ${
+              className={`relative overflow-hidden p-2 rounded-lg text-xs font-mono font-medium transition-all duration-300 flex items-center justify-center gap-1 min-w-[78px] border-none outline-none cursor-pointer ${
                 isCopied
                   ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.2)]"
                   : "bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 hover:text-white border border-cyan-500/20"
@@ -271,3 +334,5 @@ export default function PromptCard({
     </div>
   );
 }
+
+export default React.memo(PromptCardComponent);
